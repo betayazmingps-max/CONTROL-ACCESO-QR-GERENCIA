@@ -594,8 +594,58 @@
       <div id="lista-viajes" class="list"></div>
     </div>
 
-    <div id="conductor-qr-wrap" class="hidden">
+    <div id="conductor-opciones-wrap" class="hidden">
       <button class="btn ghost" onclick="volverDni()" style="margin-bottom:14px;">← Ingresar otro DNI</button>
+      <div class="qr-card" style="padding:22px;">
+        <div style="font-weight:700; font-size:17px; text-align:center;" id="opc-titulo"></div>
+        <p class="hint" style="text-align:center; margin:4px 0 0;" id="opc-sub"></p>
+        <button class="btn block" style="margin-top:16px;" onclick="mostrarQRViaje(viajeConductorActual)">Mostrar QR</button>
+        <button class="btn ghost block" style="margin-top:10px;" onclick="abrirGuiaConductor()">📄 Escanear guía</button>
+        <div id="opc-guia-estado" class="hint" style="text-align:center; margin-top:8px;"></div>
+
+        <div style="margin-top:18px; border-top:1px solid var(--line); padding-top:14px; width:100%;">
+          <div style="font-weight:700;">📍 Compartir mi ubicación</div>
+          <p class="hint" id="gps-hint" style="margin:4px 0 8px;"></p>
+          <div id="gps-inactivo">
+            <select id="gps-horas">
+              <option value="1">Por 1 hora</option>
+              <option value="2">Por 2 horas</option>
+              <option value="4">Por 4 horas</option>
+              <option value="8" selected>Por 8 horas</option>
+              <option value="12">Por 12 horas</option>
+            </select>
+            <button class="btn block" style="margin-top:8px;" onclick="iniciarCompartirUbicacion()">Compartir ubicación</button>
+          </div>
+          <div id="gps-activo" class="hidden">
+            <div id="gps-estado" style="font-weight:600;"></div>
+            <button class="btn ghost block" style="margin-top:8px;" onclick="detenerCompartirUbicacion()">Dejar de compartir</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="conductor-guia-wrap" class="hidden">
+      <button class="btn ghost" onclick="mostrarOpcionesConductor()" style="margin-bottom:14px;">← Opciones</button>
+      <div class="qr-card" style="padding:20px;">
+        <div style="font-weight:700; font-size:16px; text-align:center;">Guía de remisión</div>
+        <p class="hint" style="text-align:center; margin:4px 0 0;">Toma una foto de la guía completa y bien iluminada. Revisa los datos antes de guardar.</p>
+        <input type="file" id="guia-foto" accept="image/*" capture="environment" class="hidden" onchange="procesarFotoGuia(this)">
+        <button class="btn block" style="margin-top:14px;" onclick="document.getElementById('guia-foto').click()">📷 Tomar foto de la guía</button>
+        <div id="guia-estado" class="hint" style="text-align:center; margin-top:8px;"></div>
+        <div id="guia-form" class="settings-form hidden" style="margin-top:14px; width:100%;">
+          <div class="field"><label class="hint">N° de guía</label><input type="text" id="guia-numero" placeholder="T001-000123"></div>
+          <div class="field"><label class="hint">RUC de quien emite</label><input type="text" id="guia-ruc" inputmode="numeric"></div>
+          <div class="field"><label class="hint">Fecha de la guía</label><input type="text" id="guia-fecha" placeholder="AAAA-MM-DD"></div>
+          <div class="field"><label class="hint">Peso</label><input type="text" id="guia-peso" placeholder="Ej. 1250 KGM"></div>
+          <div class="field"><label class="hint">Cantidad de jabas</label><input type="text" id="guia-jabas" inputmode="numeric"></div>
+          <div class="field"><label class="hint">Hora de carga</label><input type="text" id="guia-hora" placeholder="HH:MM"></div>
+          <button class="btn block" onclick="guardarGuiaConductor()">✔ Guardar guía</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="conductor-qr-wrap" class="hidden">
+      <button class="btn ghost" onclick="mostrarOpcionesConductor()" style="margin-bottom:14px;">← Opciones</button>
       <div class="qr-card">
         <div class="qr-top"><span>PASE DE ACCESO</span><span id="qr-zona"></span></div>
         <div class="qr-body">
@@ -773,6 +823,33 @@
       </span>
       <span class="chev"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
     </button>
+    <button class="role-btn" onclick="goTo('ubicaciones')">
+      <span class="icon-chip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>
+      </span>
+      <span>
+        <div class="label">Ubicaciones</div>
+        <div class="sub">Ver dónde está cada unidad (por placa)</div>
+      </span>
+      <span class="chev"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+    </button>
+  </section>
+
+  <!-- LOGÍSTICA: UBICACIONES -->
+  <section id="screen-ubicaciones" class="screen hidden">
+    <div class="topbar" style="margin:-22px -20px 4px;">
+      <button class="back" onclick="goTo('logistica')">←</button>
+      <div class="title">Ubicaciones</div>
+    </div>
+    <div class="field" style="margin-bottom:10px;">
+      <label>Placa</label>
+      <select id="ubi-placa" onchange="cargarUbicaciones()"></select>
+    </div>
+    <button class="btn block" onclick="cargarUbicaciones()">Actualizar</button>
+    <div id="ubi-resumen" style="margin-top:10px; font-weight:600;"></div>
+    <div id="ubi-mapa" style="height:320px; border-radius:var(--radius); margin-top:10px; overflow:hidden; border:1px solid var(--line);"></div>
+    <div class="log-title">Últimas posiciones</div>
+    <div id="ubi-lista" class="list"></div>
   </section>
 
   <!-- LOGÍSTICA: REGISTRAR (alta de conductor/unidad) -->
@@ -803,6 +880,7 @@
       <button type="button" class="active" onclick="seleccionarTipoRegistro('proveedor')" id="registrar-tipo-proveedor">Proveedor</button>
       <button type="button" onclick="seleccionarTipoRegistro('conductor')" id="registrar-tipo-conductor">Conductor</button>
       <button type="button" onclick="seleccionarTipoRegistro('unidad')" id="registrar-tipo-unidad">Unidad</button>
+      <button type="button" onclick="seleccionarTipoRegistro('ruta')" id="registrar-tipo-ruta">Ruta</button>
     </div>
 
     <div id="registrar-form-proveedor" class="prog-form">
@@ -1005,6 +1083,40 @@
       </div>
     </div>
 
+    <div id="registrar-form-ruta" class="prog-form hidden">
+      <div class="row2">
+        <div>
+          <label class="hint">Fundo / destino</label>
+          <input type="text" id="reg-r-destino" placeholder="Ej. ENCANTADA" oninput="actualizarPreviewRuta_(); actualizarVisibilidadBuscadorRegistro()">
+        </div>
+        <div>
+          <label class="hint">Ruta (se arma sola)</label>
+          <input type="text" id="reg-r-nombre" readonly style="background:var(--purple-soft);" placeholder="DESTINO -> PLANTA RECRIA">
+        </div>
+      </div>
+      <div class="row2">
+        <div><label class="hint">Km ida y vuelta</label><input type="number" id="reg-r-km" min="0" step="any" oninput="actualizarPreviewRuta_()"></div>
+        <div><label class="hint">Cantidad de vueltas</label><input type="number" id="reg-r-vueltas" min="1" step="1" oninput="actualizarPreviewRuta_()"></div>
+      </div>
+      <div>
+        <label class="hint">Total de kilómetros (automático)</label>
+        <input type="text" id="reg-r-total-km" readonly style="background:var(--purple-soft);">
+      </div>
+      <div>
+        <label class="hint">Tarifa de TODA la ruta según capacidad (S/)</label>
+        <div class="row2">
+          <div><label class="hint">10 PH</label><input type="number" id="reg-r-t10" min="0" step="any"></div>
+          <div><label class="hint">12 PH</label><input type="number" id="reg-r-t12" min="0" step="any"></div>
+        </div>
+        <div class="row2" style="margin-top:8px;">
+          <div><label class="hint">14 PH</label><input type="number" id="reg-r-t14" min="0" step="any"></div>
+          <div><label class="hint">16 PH</label><input type="number" id="reg-r-t16" min="0" step="any"></div>
+        </div>
+        <p class="hint" style="margin:6px 0 0;">Es el precio de la ruta completa. Al programar, se divide entre las vueltas para sacar lo que vale cada viaje.</p>
+      </div>
+      <button class="btn block" id="reg-r-btn-guardar" onclick="guardarRutaNueva()">Guardar ruta</button>
+    </div>
+
     <div id="registrar-msg" class="hint" style="text-align:center; margin-top:6px;"></div>
   </section>
 
@@ -1190,7 +1302,8 @@
         qué viajes ya tienen sus 6 marcas completas).
    ========================================================= */
 
-const LS_KEYS = { registroUrl: "acc_registro_url", piuraUrl: "acc_piura_url", registros: "acc_registros_demo", programacion: "acc_programacion_demo" };
+const LS_KEYS = { registroUrl: "acc_registro_url", piuraUrl: "acc_piura_url", registros: "acc_registros_demo", programacion: "acc_programacion_demo",
+  guias: "acc_guias_demo", ubicaciones: "acc_ubicaciones_demo", gps: "acc_gps_compartiendo" };
 
 // Apps Script de la hoja "Registro Accesos QR" — ahí se guarda cada Entrada/Salida.
 const DEFAULT_REGISTRO_URL = "https://script.google.com/macros/s/AKfycbzQEPQ0XBMDBWbes6b2OwCGrbNAPFMqvZufaegje8Ak0hfM_Ag1jL4ZD02G86uLWGLXyg/exec";
@@ -1585,6 +1698,7 @@ function goTo(screen){
   if (screen === "logistica-registrar") initRegistrar();
   if (screen === "settings") initSettings();
   if (screen === "settings-conductor") initSettingsConductor();
+  if (screen === "ubicaciones") initUbicaciones();
 }
 function initSettingsConductor(){
   document.getElementById("settings-conductor-otros").classList.add("hidden");
@@ -1672,8 +1786,7 @@ async function initConductor(){
   // vez — se cierran por si acaso antes de entrar a Conductor.
   pararScanner();
   pararScannerProduccion();
-  document.getElementById("conductor-qr-wrap").classList.add("hidden");
-  document.getElementById("conductor-viajes-wrap").classList.add("hidden");
+  ocultarPasosConductor_();
   document.getElementById("conductor-dni-wrap").classList.remove("hidden");
   document.getElementById("dni-input").value = "";
   document.getElementById("dni-error").classList.add("hidden");
@@ -1681,10 +1794,16 @@ async function initConductor(){
   if (!docCacheCargado) await cargarDocumentacion(); // trae también la Programación
 }
 
+// Los "pasos" de la pantalla Conductor: DNI -> opciones (Mostrar QR /
+// Escanear guía / Compartir ubicación) -> QR o guía.
+function ocultarPasosConductor_(){
+  ["conductor-qr-wrap", "conductor-viajes-wrap", "conductor-opciones-wrap", "conductor-guia-wrap"]
+    .forEach(id => document.getElementById(id).classList.add("hidden"));
+}
+
 function volverDni(){
   detenerEscaneoDni();
-  document.getElementById("conductor-qr-wrap").classList.add("hidden");
-  document.getElementById("conductor-viajes-wrap").classList.add("hidden");
+  ocultarPasosConductor_();
   document.getElementById("conductor-dni-wrap").classList.remove("hidden");
   document.getElementById("dni-input").value = "";
   document.getElementById("dni-error").classList.add("hidden");
@@ -1851,7 +1970,8 @@ async function verificarDniConductor(){
     errorEl.classList.remove("hidden");
     return;
   }
-  mostrarQRViaje(siguiente);
+  viajeConductorActual = siguiente;
+  mostrarOpcionesConductor();
 }
 
 function mostrarListaViajes(viajes){
@@ -1870,14 +1990,321 @@ function mostrarListaViajes(viajes){
     </div>`).join("");
 }
 
+/* ---------- Conductor: opciones (QR / guía / ubicación) ---------- */
+let viajeConductorActual = null;
+
+function mostrarOpcionesConductor(){
+  const v = viajeConductorActual;
+  if (!v) return;
+  ["conductor-dni-wrap", "conductor-viajes-wrap", "conductor-qr-wrap", "conductor-guia-wrap"]
+    .forEach(id => document.getElementById(id).classList.add("hidden"));
+  document.getElementById("conductor-opciones-wrap").classList.remove("hidden");
+  document.getElementById("opc-titulo").textContent = v.Placa + " · Viaje " + (v.Viaje || "1");
+  document.getElementById("opc-sub").textContent = [v.Conductor, v.Ruta].filter(Boolean).join(" — ");
+  actualizarEstadoGuiaConductor_();
+  actualizarPanelGps_();
+}
+
+/* ---------- Guía de remisión ---------- */
+// Las guías se guardan en la hoja GUIAS del Registro (una fila por Placa +
+// Viaje + Fecha). En demo, en localStorage con las mismas columnas.
+let guiasCache = null;
+async function cargarGuiasCache(){
+  if (registroEnDemo()){
+    try{ guiasCache = JSON.parse(localStorage.getItem(LS_KEYS.guias) || "[]"); }catch(e){ guiasCache = []; }
+    return guiasCache;
+  }
+  try{
+    const texto = await fetchConReintento_(getRegistroUrl() + "?hoja=GUIAS").then(r => r.text());
+    guiasCache = parseCSVObjetos(texto);
+  }catch(e){
+    console.error(e);
+    guiasCache = [];
+  }
+  return guiasCache;
+}
+function buscarGuiaDeViaje_(placa, viaje){
+  const normPlaca = normalizarPlaca(placa);
+  const viajeTxt = (viaje || "1").toString().trim();
+  const hoy = new Date();
+  return (guiasCache || []).find(row => {
+    const f = parseFechaProgramacion(row.Fecha);
+    return normalizarPlaca(row.Placa) === normPlaca && (row.Viaje || "1").toString().trim() === viajeTxt &&
+      f && f.toDateString() === hoy.toDateString();
+  });
+}
+async function actualizarEstadoGuiaConductor_(){
+  const el = document.getElementById("opc-guia-estado");
+  el.textContent = "";
+  const v = viajeConductorActual;
+  if (!v) return;
+  await cargarGuiasCache();
+  const g = buscarGuiaDeViaje_(v.Placa, v.Viaje);
+  el.textContent = g ? ("✔ Guía " + (g["N° Guía"] || "") + " ya registrada para este viaje") : "Este viaje aún no tiene guía registrada.";
+}
+function abrirGuiaConductor(){
+  ["conductor-opciones-wrap", "conductor-qr-wrap"].forEach(id => document.getElementById(id).classList.add("hidden"));
+  document.getElementById("conductor-guia-wrap").classList.remove("hidden");
+  document.getElementById("guia-estado").textContent = "";
+  document.getElementById("guia-form").classList.add("hidden");
+}
+// Reduce la foto antes de mandarla (una foto de celular pesa varios MB y
+// no hace falta tanto para leer una guía).
+function comprimirImagen_(file, maxLado, calidad){
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const esc = Math.min(1, maxLado / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * esc);
+      c.height = Math.round(img.height * esc);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve({ b64: c.toDataURL("image/jpeg", calidad).split(",")[1], mediaType: "image/jpeg" });
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("No se pudo leer la foto")); };
+    img.src = url;
+  });
+}
+function parsearJsonIA_(texto){
+  const m = (texto || "").match(/\{[\s\S]*\}/);
+  if (!m) return null;
+  try{ return JSON.parse(m[0]); }catch(e){}
+  try{ return JSON.parse(m[0].replace(/\s\/\/[^\n]*/g, "")); }catch(e){ return null; }
+}
+function llenarFormGuia_(g){
+  g = g || {};
+  const set = (id, v) => { document.getElementById(id).value = (v === null || v === undefined) ? "" : v; };
+  set("guia-numero", g.numero);
+  set("guia-ruc", g.ruc_emisor);
+  set("guia-fecha", g.fecha_guia);
+  set("guia-peso", g.peso);
+  set("guia-jabas", g.jabas);
+  set("guia-hora", g.hora_carga);
+  document.getElementById("guia-form").classList.remove("hidden");
+}
+async function procesarFotoGuia(input){
+  const file = input.files && input.files[0];
+  input.value = "";
+  if (!file) return;
+  const est = document.getElementById("guia-estado");
+  document.getElementById("guia-form").classList.add("hidden");
+  est.textContent = "Leyendo la guía… puede tardar unos segundos.";
+  try{
+    const { b64, mediaType } = await comprimirImagen_(file, 1600, 0.8);
+    const r = await workerFetch("analizar_guia", { mediaType, isImg: true, data: b64 });
+    if (r._error || r.ok === false){
+      est.textContent = "No se pudo leer la guía (" + (r._error || r.error || "error") + "). Puedes llenar los datos a mano.";
+      llenarFormGuia_({});
+      return;
+    }
+    const g = parsearJsonIA_(r.texto);
+    if (!g){
+      est.textContent = "No se entendió la respuesta al leer la guía. Llena los datos a mano.";
+      llenarFormGuia_({});
+      return;
+    }
+    llenarFormGuia_(g);
+    if (g.valida === false) est.textContent = "⚠ Esto no parece una guía de remisión. Revisa los datos o toma otra foto.";
+    else if (g.nitida === false) est.textContent = "⚠ La foto salió borrosa: revisa bien los datos leídos o toma otra foto.";
+    else est.textContent = "Datos leídos de la guía — revísalos y corrige lo que haga falta antes de guardar.";
+  }catch(e){
+    est.textContent = "No se pudo procesar la foto: " + e.message;
+  }
+}
+async function guardarGuiaConductor(){
+  const v = viajeConductorActual;
+  const est = document.getElementById("guia-estado");
+  if (!v) return;
+  const val = id => document.getElementById(id).value.trim();
+  const guia = {
+    numero: val("guia-numero"), rucEmisor: val("guia-ruc"), fechaGuia: val("guia-fecha"),
+    peso: val("guia-peso"), jabas: val("guia-jabas"), horaCarga: val("guia-hora"), observacion: ""
+  };
+  if (!guia.numero){ est.textContent = "Falta el N° de la guía."; return; }
+  est.textContent = "Guardando…";
+  try{
+    const destino = destinoDeRuta_(v.Ruta);
+    if (registroEnDemo()){
+      const lista = JSON.parse(localStorage.getItem(LS_KEYS.guias) || "[]");
+      const hoy = new Date().toISOString().slice(0, 10);
+      const fila = {
+        Fecha: hoy, Viaje: v.Viaje || "1", Placa: v.Placa, Conductor: v.Conductor, Proveedor: v.Proveedor,
+        Ruta: v.Ruta, Destino: destino, "N° Guía": guia.numero, "RUC Emisor": guia.rucEmisor,
+        "Fecha Guía": guia.fechaGuia, Peso: guia.peso, Jabas: guia.jabas, "Hora de Carga": guia.horaCarga
+      };
+      const otras = lista.filter(g => !(g.Fecha === hoy && g.Placa === v.Placa && String(g.Viaje) === String(fila.Viaje)));
+      otras.push(fila);
+      localStorage.setItem(LS_KEYS.guias, JSON.stringify(otras));
+    } else {
+      const res = await fetchConReintento_(getRegistroUrl(), {
+        method: "POST",
+        body: JSON.stringify({ action: "guardarGuia", placa: v.Placa, viaje: v.Viaje || "1", conductor: v.Conductor,
+          proveedor: v.Proveedor, ruta: v.Ruta, destino, guia })
+      });
+      let data = {};
+      try{ data = await res.json(); }catch(e){}
+      if (data && data.error) throw new Error(data.error);
+    }
+    guiasCache = null;
+    est.textContent = "Guía guardada ✔";
+    setTimeout(mostrarOpcionesConductor, 900);
+  }catch(e){
+    est.textContent = "No se pudo guardar: " + e.message;
+  }
+}
+
+/* ---------- Compartir ubicación ---------- */
+// En el APK nativo (Capacitor + plugin de ubicación en segundo plano) sigue
+// mandando la ubicación con el celular bloqueado. En navegador o en el APK
+// viejo (TWA) usa la ubicación normal del navegador, que solo funciona
+// mientras la app está abierta en pantalla.
+let gpsWatch = null;
+let gpsUltimoEnvio = 0;
+let gpsUltimaPos = null;
+let gpsPluginCache = undefined;
+function gpsPluginNativo_(){
+  if (gpsPluginCache !== undefined) return gpsPluginCache;
+  gpsPluginCache = null;
+  try{
+    const C = window.Capacitor;
+    if (C && C.isNativePlatform && C.isNativePlatform() && C.registerPlugin){
+      gpsPluginCache = C.registerPlugin("BackgroundGeolocation");
+    }
+  }catch(e){}
+  return gpsPluginCache;
+}
+function gpsEstado_(){
+  try{ return JSON.parse(localStorage.getItem(LS_KEYS.gps) || "null"); }catch(e){ return null; }
+}
+async function iniciarCompartirUbicacion(){
+  const v = viajeConductorActual;
+  if (!v) return;
+  const horas = parseFloat(document.getElementById("gps-horas").value) || 8;
+  localStorage.setItem(LS_KEYS.gps, JSON.stringify({
+    placa: v.Placa, viaje: v.Viaje || "1", conductor: v.Conductor, hasta: Date.now() + horas * 3600 * 1000
+  }));
+  gpsUltimoEnvio = 0;
+  await arrancarWatchUbicacion_();
+  actualizarPanelGps_();
+}
+async function arrancarWatchUbicacion_(){
+  const est = gpsEstado_();
+  if (!est || Date.now() > est.hasta){ detenerCompartirUbicacion(); return; }
+  if (gpsWatch) return;
+  const hint = document.getElementById("gps-hint");
+  const plugin = gpsPluginNativo_();
+  try{
+    if (plugin){
+      const id = await plugin.addWatcher({
+        backgroundTitle: "Acceso QR",
+        backgroundMessage: "Compartiendo tu ubicación con Logística",
+        requestPermissions: true, stale: false, distanceFilter: 20
+      }, (loc, err) => {
+        if (err){
+          if (err.code === "NOT_AUTHORIZED" && hint) hint.textContent = "Falta el permiso de ubicación: actívalo en los ajustes del celular (Ubicación: siempre).";
+          return;
+        }
+        if (loc) onPosicionGps_(loc.latitude, loc.longitude, loc.accuracy);
+      });
+      gpsWatch = { tipo: "nativo", id };
+    } else if (navigator.geolocation){
+      const id = navigator.geolocation.watchPosition(
+        pos => onPosicionGps_(pos.coords.latitude, pos.coords.longitude, pos.coords.accuracy),
+        err => { if (hint) hint.textContent = err.code === 1 ? "Permiso de ubicación denegado: actívalo para poder compartirla." : "No se pudo obtener la ubicación (" + err.message + ")."; },
+        { enableHighAccuracy: true, maximumAge: 30000, timeout: 30000 }
+      );
+      gpsWatch = { tipo: "web", id };
+    } else {
+      if (hint) hint.textContent = "Este celular/navegador no permite compartir ubicación.";
+      detenerCompartirUbicacion();
+    }
+  }catch(e){
+    if (hint) hint.textContent = "No se pudo iniciar la ubicación: " + (e.message || e);
+    detenerCompartirUbicacion();
+  }
+}
+function onPosicionGps_(lat, lng, precision){
+  const est = gpsEstado_();
+  if (!est || Date.now() > est.hasta){ detenerCompartirUbicacion(); return; }
+  gpsUltimaPos = { lat, lng, ts: Date.now() };
+  actualizarPanelGps_();
+  // Un punto por minuto alcanza para ver por dónde va — más seguido solo
+  // llena la hoja y gasta batería/datos.
+  if (Date.now() - gpsUltimoEnvio < 55000) return;
+  gpsUltimoEnvio = Date.now();
+  enviarUbicacion_(est, lat, lng, precision, gpsUltimaPos.ts);
+}
+async function enviarUbicacion_(est, lat, lng, precision, ts){
+  try{
+    if (registroEnDemo()){
+      const lista = JSON.parse(localStorage.getItem(LS_KEYS.ubicaciones) || "[]");
+      const d = new Date(ts);
+      lista.push({ Timestamp: ts, Placa: est.placa, Viaje: est.viaje, Conductor: est.conductor,
+        Lat: lat, Lng: lng, "Precisión": Math.round(precision || 0),
+        Fecha: d.toISOString().slice(0, 10), Hora: d.toTimeString().slice(0, 8) });
+      localStorage.setItem(LS_KEYS.ubicaciones, JSON.stringify(lista.slice(-500)));
+      return;
+    }
+    await fetchConReintento_(getRegistroUrl(), {
+      method: "POST",
+      body: JSON.stringify({ action: "guardarUbicacion", placa: est.placa, viaje: est.viaje, conductor: est.conductor,
+        lat, lng, precision, ts })
+    });
+  }catch(e){ console.error("No se pudo enviar la ubicación", e); }
+}
+async function detenerCompartirUbicacion(){
+  const w = gpsWatch;
+  gpsWatch = null;
+  localStorage.removeItem(LS_KEYS.gps);
+  try{
+    if (w && w.tipo === "nativo") await gpsPluginNativo_().removeWatcher({ id: w.id });
+    else if (w && w.tipo === "web") navigator.geolocation.clearWatch(w.id);
+  }catch(e){}
+  actualizarPanelGps_();
+}
+function actualizarPanelGps_(){
+  const inactivo = document.getElementById("gps-inactivo");
+  if (!inactivo) return;
+  const est = gpsEstado_();
+  const activo = !!est && Date.now() <= est.hasta;
+  inactivo.classList.toggle("hidden", activo);
+  document.getElementById("gps-activo").classList.toggle("hidden", !activo);
+  const hint = document.getElementById("gps-hint");
+  if (activo){
+    const hasta = new Date(est.hasta).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" });
+    const ultima = gpsUltimaPos ? " · última posición hace " + Math.max(0, Math.round((Date.now() - gpsUltimaPos.ts) / 60000)) + " min" : " · esperando la primera posición…";
+    document.getElementById("gps-estado").textContent = "Compartiendo hasta las " + hasta + ultima;
+    hint.textContent = gpsPluginNativo_() ? "Sigue compartiendo aunque bloquees el celular." : "Mantén esta app abierta en pantalla: si la cierras o bloqueas el celular, se corta.";
+  } else if (!hint.textContent.startsWith("Falta") && !hint.textContent.startsWith("Permiso") && !hint.textContent.startsWith("No se pudo")){
+    hint.textContent = "Logística podrá ver dónde estás mientras dure. Se te pedirá el permiso de ubicación.";
+  }
+}
+// Si el Conductor cerró y volvió a abrir la app dentro del rango de horas,
+// se retoma solo; y se corta sola cuando se acaba el tiempo.
+function reanudarUbicacionSiCorresponde_(){
+  const est = gpsEstado_();
+  if (est && Date.now() <= est.hasta) arrancarWatchUbicacion_();
+  else if (est) detenerCompartirUbicacion();
+}
+setInterval(() => {
+  const est = gpsEstado_();
+  if (est && Date.now() > est.hasta) detenerCompartirUbicacion();
+  else if (est) actualizarPanelGps_();
+}, 30000);
+
 function mostrarQRViajeDesdeLista(i){
   const viajes = JSON.parse(document.getElementById("conductor-viajes-wrap").dataset.actual);
   mostrarQRViaje(viajes[i]);
 }
 
 function mostrarQRViaje(viaje){
+  viajeConductorActual = viaje;
   document.getElementById("conductor-dni-wrap").classList.add("hidden");
   document.getElementById("conductor-viajes-wrap").classList.add("hidden");
+  document.getElementById("conductor-opciones-wrap").classList.add("hidden");
+  document.getElementById("conductor-guia-wrap").classList.add("hidden");
   document.getElementById("conductor-qr-wrap").classList.remove("hidden");
 
   const prov = (basePiuraCache.proveedores || []).find(p => p.PROVEEDOR === viaje.Proveedor);
@@ -2075,12 +2502,36 @@ function mostrarPendienteGarita_(){
       ${filaDato("Capacidad", e.capacidad)}
       ${filaDato("Operación", e.operacion)}
       ${e.ruta ? "" : `<div class="doc-empty">Este QR no está en la programación de hoy.</div>`}
+      <div id="garita-guia-panel"></div>
       <div style="display:flex; gap:8px; margin-top:12px;">
         <button class="btn block" onclick="confirmarGarita()">✔ Validar ${etiqueta}</button>
         <button class="btn ghost block" onclick="cancelarGarita()">Cancelar</button>
       </div>
     </div>`;
   renderDetalleDocumentacion(p.placa, p.conductor);
+  mostrarGuiaEnGarita_(p);
+}
+
+// La guía la escanea el Conductor (foto leída con IA); Garita la ve acá
+// antes de validar, sobre todo en el destino. Si el viaje no tiene guía se
+// avisa, pero no se bloquea el registro.
+async function mostrarGuiaEnGarita_(p){
+  const cont = document.getElementById("garita-guia-panel");
+  if (!cont) return;
+  cont.innerHTML = '<div class="doc-empty">Buscando la guía del viaje…</div>';
+  await cargarGuiasCache();
+  if (pendingGarita !== p) return; // ya se validó/canceló mientras cargaba
+  const g = buscarGuiaDeViaje_(p.placa, p.extra.viaje);
+  const fila = (label, valor) => valor ? `<div class="doc-row"><span class="dl">${label}</span><span class="dv">${valor}</span></div>` : "";
+  cont.innerHTML = g
+    ? `<div class="doc-sec-title">GUÍA DEL VIAJE</div>
+       ${fila("N° de guía", g["N° Guía"])}
+       ${fila("RUC emisor", g["RUC Emisor"])}
+       ${fila("Fecha de la guía", g["Fecha Guía"])}
+       ${fila("Peso", g.Peso)}
+       ${fila("Cantidad de jabas", g.Jabas)}
+       ${fila("Hora de carga", g["Hora de Carga"])}`
+    : `<div class="doc-sec-title">GUÍA DEL VIAJE</div><div class="doc-empty" style="color:var(--alert);">⚠ Este viaje aún no tiene guía registrada por el Conductor.</div>`;
 }
 
 function cancelarGarita(){
@@ -2395,6 +2846,90 @@ function renderProduccionLog(){
       <span>${formatHora(r.hora)}</span>
     </div>
   `).join("");
+}
+
+/* =========================================================
+   LOGÍSTICA: UBICACIONES (por placa, con mapa)
+   ========================================================= */
+let ubiMapa = null, ubiCapas = null;
+function cargarLeaflet_(){
+  if (window.L) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const css = document.createElement("link");
+    css.rel = "stylesheet";
+    css.href = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css";
+    document.head.appendChild(css);
+    const js = document.createElement("script");
+    js.src = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js";
+    js.onload = () => resolve();
+    js.onerror = () => reject(new Error("No se pudo cargar el mapa (revisa tu conexión)"));
+    document.head.appendChild(js);
+  });
+}
+async function initUbicaciones(){
+  await cargarBasePiura();
+  const sel = document.getElementById("ubi-placa");
+  const placas = [...new Set((basePiuraCache.unidades || []).map(u => u.Placa).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">— Selecciona una placa —</option>' + placas.map(p => `<option value="${p}">${p}</option>`).join("");
+  document.getElementById("ubi-resumen").textContent = "";
+  document.getElementById("ubi-lista").innerHTML = '<div class="empty">Elige una placa para ver su ubicación.</div>';
+}
+async function cargarUbicaciones(){
+  const placa = document.getElementById("ubi-placa").value;
+  const resumen = document.getElementById("ubi-resumen");
+  const lista = document.getElementById("ubi-lista");
+  if (!placa) return;
+  resumen.textContent = "Buscando…";
+  let filas = [];
+  try{
+    if (registroEnDemo()){
+      filas = JSON.parse(localStorage.getItem(LS_KEYS.ubicaciones) || "[]")
+        .filter(u => normalizarPlaca(u.Placa) === normalizarPlaca(placa));
+    } else {
+      const texto = await fetchConReintento_(getRegistroUrl() + "?hoja=UBICACIONES&placa=" + encodeURIComponent(placa) + "&limite=300").then(r => r.text());
+      filas = parseCSVObjetos(texto);
+    }
+  }catch(e){
+    resumen.textContent = "No se pudo consultar: " + e.message;
+    return;
+  }
+  const pts = filas
+    .map(u => ({ ts: parseInt(u.Timestamp, 10), lat: parseFloat(u.Lat), lng: parseFloat(u.Lng), prec: u["Precisión"], hora: u.Hora, conductor: u.Conductor, viaje: u.Viaje }))
+    .filter(p => !isNaN(p.lat) && !isNaN(p.lng))
+    .sort((a, b) => a.ts - b.ts);
+  if (!pts.length){
+    resumen.textContent = "Esta placa no está compartiendo ubicación (o todavía no ha enviado ninguna).";
+    lista.innerHTML = "";
+    if (ubiCapas) ubiCapas.clearLayers();
+    return;
+  }
+  const ult = pts[pts.length - 1];
+  const min = Math.max(0, Math.round((Date.now() - ult.ts) / 60000));
+  const hace = min < 1 ? "hace menos de 1 min" : min < 90 ? "hace " + min + " min" : "hace " + Math.round(min / 60) + " h";
+  resumen.innerHTML = `Última posición ${hace} (${ult.hora || ""}) · ±${ult.prec || "?"} m` +
+    (ult.conductor ? ` · ${ult.conductor}` : "") + (ult.viaje ? ` · Viaje ${ult.viaje}` : "") +
+    ` · <a href="https://www.google.com/maps?q=${ult.lat},${ult.lng}" target="_blank" rel="noopener">Abrir en Google Maps</a>`;
+  lista.innerHTML = pts.slice(-10).reverse().map(p => `
+    <div class="log-item">
+      <span class="lp">${p.hora || ""}</span>
+      <span>${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}</span>
+    </div>`).join("");
+  try{
+    await cargarLeaflet_();
+    if (!ubiMapa){
+      ubiMapa = L.map("ubi-mapa");
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "© OpenStreetMap" }).addTo(ubiMapa);
+      ubiCapas = L.layerGroup().addTo(ubiMapa);
+    }
+    ubiMapa.invalidateSize();
+    ubiCapas.clearLayers();
+    const coords = pts.map(p => [p.lat, p.lng]);
+    if (coords.length > 1) L.polyline(coords, { color: "#5B2A9E", weight: 3 }).addTo(ubiCapas);
+    L.circleMarker([ult.lat, ult.lng], { radius: 9, color: "#fff", weight: 2, fillColor: "#E2574C", fillOpacity: 1 }).addTo(ubiCapas);
+    ubiMapa.fitBounds(L.latLngBounds(coords).pad(0.3), { maxZoom: 16 });
+  }catch(e){
+    document.getElementById("ubi-mapa").innerHTML = `<div class="empty">${e.message}</div>`;
+  }
 }
 
 /* =========================================================
@@ -2931,6 +3466,9 @@ function hayEntradaNuevaEnFormularioActivo_(){
   if (!document.getElementById("registrar-form-unidad").classList.contains("hidden")){
     return !!document.getElementById("reg-u-placa").value.trim();
   }
+  if (!document.getElementById("registrar-form-ruta").classList.contains("hidden")){
+    return !!document.getElementById("reg-r-destino").value.trim();
+  }
   return false;
 }
 
@@ -2966,7 +3504,10 @@ function irAAgregarDesdeProveedor(tipo){
 // guardar, o al abrir un registro desde el buscador) — el clic manual del
 // usuario en las pestañas nunca pasa `forzado`, así que sí respeta el bloqueo.
 function seleccionarTipoRegistro(tipo, forzado){
-  if (!forzado && tipo !== "proveedor" && !proveedorActivo){
+  // Las rutas/tarifas no dependen de ningún proveedor (una ruta vale igual
+  // para todos, cambia solo por la capacidad de la unidad), así que no
+  // piden proveedor activo.
+  if (!forzado && tipo !== "proveedor" && tipo !== "ruta" && !proveedorActivo){
     document.getElementById("registrar-msg").textContent = "Primero registra o busca un proveedor.";
     return;
   }
@@ -2974,9 +3515,11 @@ function seleccionarTipoRegistro(tipo, forzado){
   document.getElementById("registrar-tipo-proveedor").classList.toggle("active", tipo === "proveedor");
   document.getElementById("registrar-tipo-conductor").classList.toggle("active", tipo === "conductor");
   document.getElementById("registrar-tipo-unidad").classList.toggle("active", tipo === "unidad");
+  document.getElementById("registrar-tipo-ruta").classList.toggle("active", tipo === "ruta");
   document.getElementById("registrar-form-proveedor").classList.toggle("hidden", tipo !== "proveedor");
   document.getElementById("registrar-form-conductor").classList.toggle("hidden", tipo !== "conductor");
   document.getElementById("registrar-form-unidad").classList.toggle("hidden", tipo !== "unidad");
+  document.getElementById("registrar-form-ruta").classList.toggle("hidden", tipo !== "ruta");
   document.getElementById("registrar-msg").textContent = "";
 }
 
@@ -3054,6 +3597,10 @@ function buscarEnRegistrar(){
   (basePiuraCache.unidades || []).forEach(u => {
     if (normalizarPlaca(u.Placa).includes(normalizarPlaca(q)))
       resultados.push({ tipo:"unidad", etiqueta:u.Placa, sub: u.Proveedor || "", row:u });
+  });
+  (basePiuraCache.rutas || []).forEach(r => {
+    if ((r.RUTA || "").toUpperCase().includes(q))
+      resultados.push({ tipo:"ruta", etiqueta:r.RUTA, sub: (r["CANTIDAD DE VUELTAS"] || "?") + " vueltas", row:r });
   });
 
   registrarResultadosActuales = resultados.slice(0, 10);
@@ -3143,6 +3690,15 @@ function cargarParaEditar(tipo, row){
     document.getElementById("reg-u-poliza").value = (row["Cuenta con Poliza RC"] || "").toUpperCase() === "SI" ? "SI" : "NO";
     document.getElementById("reg-u-btn-guardar").textContent = "Guardar cambios";
     mostrarBannerEdicion("Unidad: " + row.Placa);
+  } else if (tipo === "ruta"){
+    editandoRegistro = { tipo, clave: row.RUTA };
+    document.getElementById("reg-r-destino").value = destinoDeRuta_(row.RUTA);
+    document.getElementById("reg-r-km").value = row["KM IDA VUELTA"] || "";
+    document.getElementById("reg-r-vueltas").value = row["CANTIDAD DE VUELTAS"] || "";
+    ["10", "12", "14", "16"].forEach(ph => { document.getElementById("reg-r-t" + ph).value = row[ph + " PH"] || ""; });
+    actualizarPreviewRuta_();
+    document.getElementById("reg-r-btn-guardar").textContent = "Guardar cambios";
+    mostrarBannerEdicion("Ruta: " + row.RUTA);
   }
   actualizarBloqueoTabsRegistro();
   actualizarModoBotonesRegistro();
@@ -3156,9 +3712,86 @@ function cancelarEdicionRegistro(){
   limpiarFormularioProveedorNuevo();
   limpiarFormularioConductorNuevo(true);
   limpiarFormularioUnidadNueva(true);
+  limpiarFormularioRuta_();
   actualizarBloqueoTabsRegistro();
   actualizarModoBotonesRegistro();
   document.getElementById("registrar-msg").textContent = "";
+}
+
+/* ---- Ruta y tarifas: alta / edición ---- */
+const PH_RUTAS = ["10", "12", "14", "16"];
+function limpiarFormularioRuta_(){
+  ["reg-r-destino", "reg-r-nombre", "reg-r-km", "reg-r-vueltas", "reg-r-total-km", "reg-r-t10", "reg-r-t12", "reg-r-t14", "reg-r-t16"]
+    .forEach(id => document.getElementById(id).value = "");
+  document.getElementById("reg-r-btn-guardar").textContent = "Guardar ruta";
+}
+// La ruta siempre sale de Planta Recria hacia el fundo: se escribe solo el
+// destino y se arma "DESTINO -> PLANTA RECRIA", que es el formato que ya
+// usan Programar y Garita para saber a qué fundo va cada viaje.
+function nombreRutaDesdeDestino_(destino){
+  const d = quitarAcentos((destino || "").trim()).toUpperCase().replace(/\s+/g, " ");
+  return d ? d + " -> PLANTA RECRIA" : "";
+}
+function actualizarPreviewRuta_(){
+  document.getElementById("reg-r-nombre").value = nombreRutaDesdeDestino_(document.getElementById("reg-r-destino").value);
+  const km = parseFloat(document.getElementById("reg-r-km").value);
+  const vueltas = parseFloat(document.getElementById("reg-r-vueltas").value);
+  document.getElementById("reg-r-total-km").value = (!isNaN(km) && !isNaN(vueltas)) ? String(Math.round(km * vueltas * 100) / 100) : "";
+}
+async function guardarRutaNueva(){
+  const btn = document.getElementById("reg-r-btn-guardar");
+  if (btn.disabled) return;
+  const msg = document.getElementById("registrar-msg");
+  actualizarPreviewRuta_();
+  const ruta = document.getElementById("reg-r-nombre").value;
+  const km = parseFloat(document.getElementById("reg-r-km").value);
+  const vueltas = parseInt(document.getElementById("reg-r-vueltas").value, 10);
+  if (!ruta){ msg.textContent = "Falta el fundo / destino."; return; }
+  if (isNaN(km) || km <= 0){ msg.textContent = "Faltan los km de ida y vuelta."; return; }
+  if (isNaN(vueltas) || vueltas < 1){ msg.textContent = "Falta la cantidad de vueltas."; return; }
+  const tarifas = {};
+  PH_RUTAS.forEach(ph => {
+    const v = document.getElementById("reg-r-t" + ph).value.trim();
+    if (v !== "") tarifas[ph + " PH"] = v;
+  });
+  if (!Object.keys(tarifas).length){ msg.textContent = "Pon la tarifa de al menos una capacidad."; return; }
+
+  const editando = editandoRegistro && editandoRegistro.tipo === "ruta" ? editandoRegistro : null;
+  if (!editando){
+    const yaExiste = (basePiuraCache.rutas || []).some(r => normalizarNombre(r.RUTA) === normalizarNombre(ruta));
+    if (yaExiste){ msg.textContent = "Esa ruta ya existe — búscala arriba para editar sus tarifas en vez de crear otra."; return; }
+  }
+  const datos = { ruta, kmIdaVuelta: km, vueltas, totalKm: Math.round(km * vueltas * 100) / 100, tarifas };
+  if (editando) datos.rutaOriginal = editando.clave;
+
+  msg.textContent = "Guardando…";
+  btn.disabled = true;
+  try{
+    if (piuraEnDemo()){
+      const fila = { RUTA: ruta, "KM IDA VUELTA": String(km), "CANTIDAD DE VUELTAS": String(vueltas), "TOTAL DE KILOMETROS": String(datos.totalKm) };
+      PH_RUTAS.forEach(ph => { fila[ph + " PH"] = tarifas[ph + " PH"] || ""; });
+      if (editando){
+        const i = basePiuraCache.rutas.findIndex(r => r.RUTA === editando.clave);
+        if (i >= 0) basePiuraCache.rutas[i] = { ...basePiuraCache.rutas[i], ...fila };
+      } else {
+        basePiuraCache.rutas.push(fila);
+      }
+    } else {
+      const res = await fetchConReintento_(getPiuraUrl(), { method:"POST", body: JSON.stringify({ action: editando ? "actualizarRuta" : "guardarRuta", datos }) });
+      let data = {};
+      try{ data = await res.json(); }catch(e){}
+      if (!res.ok || data.ok === false) throw new Error(data.error || ("El servidor respondió " + res.status));
+      await refrescarBasePiuraTrasGuardar("rutas", "RUTAS ESTABLECIDAS");
+    }
+    editandoRegistro = null;
+    document.getElementById("registrar-editando-banner").classList.add("hidden");
+    limpiarFormularioRuta_();
+    msg.textContent = editando ? "Ruta actualizada ✔" : "Ruta guardada ✔ — ya aparece en Programar.";
+  }catch(e){
+    msg.textContent = "No se pudo guardar: " + e.message;
+  }finally{
+    btn.disabled = false;
+  }
 }
 
 /* ---- Proveedor: alta / edición ---- */
@@ -3845,6 +4478,7 @@ if ("serviceWorker" in navigator){
     navigator.serviceWorker.register("sw.js").catch(()=>{});
   });
 }
+reanudarUbicacionSiCorresponde_();
 let deferredPrompt;
 window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
