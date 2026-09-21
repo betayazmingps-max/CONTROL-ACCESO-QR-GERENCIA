@@ -1044,6 +1044,7 @@
           <div><label class="hint">Fecha Vencimiento RTV</label><input type="date" id="reg-u2-fecha-rtv" oninput="previsualizarAlerta('reg-u2-fecha-rtv','reg-u2-alerta-rtv')"></div>
           <div><label class="hint">Alerta (automática)</label><input type="text" id="reg-u2-alerta-rtv" readonly style="background:var(--purple-soft);"></div>
         </div>
+        <div><label class="hint">Año de Fabricación</label><input type="number" id="reg-u2-anio" placeholder="2015"></div>
       </div>
 
       <div class="row2">
@@ -4388,7 +4389,7 @@ function limpiarFormularioUnidadNueva(resetProveedor){
   document.getElementById("reg-u-poliza").value = "NO";
   document.getElementById("reg-u-capacidad-ph").value = "10 PH";
   document.getElementById("reg-u-soat-msg").textContent = "";
-  ["reg-u2-placa", "reg-u2-tipo", "reg-u2-fecha-soat", "reg-u2-alerta-soat", "reg-u2-fecha-rtv", "reg-u2-alerta-rtv"]
+  ["reg-u2-placa", "reg-u2-tipo", "reg-u2-anio", "reg-u2-fecha-soat", "reg-u2-alerta-soat", "reg-u2-fecha-rtv", "reg-u2-alerta-rtv"]
     .forEach(id => document.getElementById(id).value = "");
   document.getElementById("reg-u2-msg").textContent = "";
   document.getElementById("reg-u-remolque-hint").textContent = "";
@@ -4432,6 +4433,26 @@ async function workerFetch(path, body){
   }
 }
 
+// Año del modelo según el VIN de 17 caracteres: el décimo carácter lo
+// codifica (2001-2009 = dígitos 1-9; 2010 en adelante = letras A-Y sin
+// I, O, Q, U, Z); el código se repite cada 30 años, así que se toma el más
+// reciente que no sea futuro. Es una sugerencia: en VIN no estándar puede
+// fallar, por eso queda editable.
+function anioDesdeVin_(vin){
+  vin = (vin || "").toString().trim().toUpperCase();
+  if (!/^[A-HJ-NPR-Z0-9]{17}$/.test(vin)) return "";
+  const c = vin[9];
+  const letras = "ABCDEFGHJKLMNPRSTVWXY";
+  let base;
+  if (/[1-9]/.test(c)) base = 2000 + parseInt(c, 10);
+  else if (letras.includes(c)) base = 2010 + letras.indexOf(c);
+  else return "";
+  const tope = new Date().getFullYear() + 1;
+  while (base + 30 <= tope) base += 30;
+  while (base > tope) base -= 30;
+  return base >= 1981 ? String(base) : "";
+}
+
 // Consulta SOAT + Revisión Técnica de UNA placa y llena los campos del
 // formulario con ese prefijo: "reg-u" (la unidad) o "reg-u2" (su remolque).
 async function consultarSoatRtvPlaca_(placaInputId, prefijo, msgId){
@@ -4439,13 +4460,38 @@ async function consultarSoatRtvPlaca_(placaInputId, prefijo, msgId){
   const placa = document.getElementById(placaInputId).value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
   if (placa.length < 6){ msg.textContent = "Ingresa una placa válida primero."; return; }
 
-  msg.textContent = "Consultando SOAT y Revisión Técnica…";
-  const [soat, citv] = await Promise.all([
+  msg.textContent = "Consultando SOAT, Revisión Técnica y datos del vehículo…";
+  const [soat, citv, veh] = await Promise.all([
     workerFetch("consulta_soat", { placa }),
-    workerFetch("consulta_citv_json", { placa })
+    workerFetch("consulta_citv_json", { placa }),
+    workerFetch("consulta_placa_json", { placa })
   ]);
 
   const partes = [];
+
+  // Datos del vehículo (json.pe, el mismo que usa Transporte de Personal):
+  // marca, modelo, serie/VIN y, cuando viene, el año. Muchas placas traen el
+  // año vacío — en ese caso se calcula del VIN (décimo carácter = año del
+  // modelo) y se avisa que es una sugerencia para que la verifiquen.
+  const v = (!veh._error && veh.success && veh.data) ? veh.data : null;
+  if (v){
+    const anioEl = document.getElementById(prefijo + "-anio");
+    const anioApi = (v.anio_fabricacion || v.anio || v["año"] || v.ano_fabricacion || v.year || "").toString().trim();
+    const vin = (v.vin || v.serie || "").toString().trim().toUpperCase();
+    let anioTxt = "";
+    if (anioEl && !anioEl.value.trim()){
+      if (/^\d{4}$/.test(anioApi)){ anioEl.value = anioApi; anioTxt = "año " + anioApi; }
+      else {
+        const calc = anioDesdeVin_(vin);
+        if (calc){ anioEl.value = calc; anioTxt = "año " + calc + " (calculado del VIN — verifícalo)"; }
+        else anioTxt = "sin año (la consulta no lo trae; escríbelo a mano)";
+      }
+    }
+    const desc = [v.marca, v.modelo].filter(Boolean).join(" ");
+    partes.push("Vehículo ✔ " + [desc, anioTxt].filter(Boolean).join(" · "));
+  } else {
+    partes.push("Datos del vehículo: " + (veh._error || veh.error || "no encontrados"));
+  }
 
   if (soat._error || soat.ok === false){
     partes.push("SOAT: " + (soat._error || soat.error || "no encontrado"));
@@ -4505,7 +4551,8 @@ function leerDatosRemolque_(base){
   if (!placa) return null;
   return {
     placa, tipoUnidad: document.getElementById("reg-u2-tipo").value.trim(), capacidadPH: "",
-    ruc: base.ruc, proveedor: base.proveedor, zona: base.zona, sede: base.sede, anioFab: "",
+    ruc: base.ruc, proveedor: base.proveedor, zona: base.zona, sede: base.sede,
+    anioFab: document.getElementById("reg-u2-anio").value.trim(),
     fechaVencimientoSoat: document.getElementById("reg-u2-fecha-soat").value,
     fechaVencimientoRtv: document.getElementById("reg-u2-fecha-rtv").value,
     tieneTC: false, fechaVencimientoTc: "", estadoUnidad: base.estadoUnidad, polizaRC: false,
