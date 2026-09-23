@@ -3841,6 +3841,35 @@ function cargarParaEditar(tipo, row){
     document.getElementById("reg-u-poliza").value = (row["Cuenta con Poliza RC"] || "").toUpperCase() === "SI" ? "SI" : "NO";
     document.getElementById("reg-u-btn-guardar").textContent = "Guardar cambios";
     mostrarBannerEdicion("Unidad: " + row.Placa);
+
+    // Si esta unidad ya tiene un remolque asociado, se carga en el bloque de
+    // abajo para poder verlo/editarlo — antes se quedaba oculto y cualquier
+    // cambio ahí se perdía al guardar (ni se mostraba ni se guardaba).
+    document.getElementById("reg-u-remolque-wrap").classList.add("hidden");
+    ["reg-u2-placa","reg-u2-tipo","reg-u2-anio","reg-u2-fecha-soat","reg-u2-fecha-rtv","reg-u2-alerta-soat","reg-u2-alerta-rtv"]
+      .forEach(id => document.getElementById(id).value = "");
+    editandoRegistro.remolqueOriginal = "";
+    const placaAsoc = row["Placa Asociada"] || "";
+    if (placaAsoc){
+      const remolqueRow = (basePiuraCache.unidades || []).find(u => normalizarPlaca(u.Placa) === normalizarPlaca(placaAsoc));
+      if (remolqueRow){
+        editandoRegistro.remolqueOriginal = remolqueRow.Placa;
+        document.getElementById("reg-u2-placa").value = remolqueRow.Placa || "";
+        document.getElementById("reg-u2-tipo").value = remolqueRow["Tipo de Unidad"] || "";
+        document.getElementById("reg-u2-anio").value = remolqueRow["Año Fab."] || "";
+        document.getElementById("reg-u2-fecha-soat").value = ddmmyyyyAFechaInput(remolqueRow["Fecha Vencimiento SOAT"]);
+        previsualizarAlerta("reg-u2-fecha-soat", "reg-u2-alerta-soat");
+        document.getElementById("reg-u2-fecha-rtv").value = ddmmyyyyAFechaInput(remolqueRow["Fecha Vencimiento RTV"]);
+        previsualizarAlerta("reg-u2-fecha-rtv", "reg-u2-alerta-rtv");
+      } else {
+        // La placa asociada está anotada pero no se encontró su fila propia
+        // (dato viejo/inconsistente) — se deja el número puesto para que lo
+        // revisen, pero no se marca como "ya existe" (remolqueOriginal vacío).
+        document.getElementById("reg-u2-placa").value = placaAsoc;
+      }
+      document.getElementById("reg-u-remolque-wrap").classList.remove("hidden");
+      document.getElementById("reg-u-remolque-hint").textContent = "Remolque ya registrado con esta unidad.";
+    }
   } else if (tipo === "ruta"){
     editandoRegistro = { tipo, clave: row.RUTA };
     document.getElementById("reg-r-destino").value = destinoDeRuta_(row.RUTA);
@@ -4666,17 +4695,52 @@ async function guardarUnidadNueva(){
   if (!datos.placa){ msg.textContent = "Falta la placa."; return; }
   datos.placaOriginal = editandoRegistro.clave;
 
+  // Remolque: antes este bloque se leía en pantalla pero nunca se mandaba a
+  // guardar — quedaba visualmente lleno y se perdía al cerrar el formulario.
+  // Ahora, si ya tenía un remolque (remolqueOriginal), se actualiza esa
+  // misma fila; si es uno nuevo (no tenía antes), se crea como unidad aparte
+  // — mismo criterio que al registrar por primera vez.
+  const remolque = leerDatosRemolque_(datos);
+  datos.placaAsociada = remolque ? remolque.placa : "";
+  const remolqueOriginal = editandoRegistro.remolqueOriginal || "";
+  if (remolque && !remolqueOriginal){
+    const p2 = normalizarPlaca(remolque.placa);
+    const yaExiste2 = p2 === normalizarPlaca(datos.placa) ||
+      (basePiuraCache.unidades || []).some(u => normalizarPlaca(u.Placa) === p2);
+    if (yaExiste2){ msg.textContent = "La placa del remolque ya está registrada (o es la misma de esta unidad)."; return; }
+  }
+
   msg.textContent = "Guardando…";
   btnGuardar.disabled = true;
   try{
     if (piuraEnDemo()){
       const fila = basePiuraCache.unidades.find(u => normalizarPlaca(u.Placa) === normalizarPlaca(editandoRegistro.clave));
-      if (fila){ fila.Placa = datos.placa; fila["Tipo de Unidad"] = datos.tipoUnidad; fila["Capacidad (PH)"] = datos.capacidadPH; fila.RUC = datos.ruc; fila.Proveedor = datos.proveedor; fila.ZONA = datos.zona; fila.SEDE = datos.sede; }
+      if (fila){ fila.Placa = datos.placa; fila["Tipo de Unidad"] = datos.tipoUnidad; fila["Capacidad (PH)"] = datos.capacidadPH; fila.RUC = datos.ruc; fila.Proveedor = datos.proveedor; fila.ZONA = datos.zona; fila.SEDE = datos.sede; fila["Placa Asociada"] = datos.placaAsociada; }
+      if (remolque){
+        if (remolqueOriginal){
+          const filaR = basePiuraCache.unidades.find(u => normalizarPlaca(u.Placa) === normalizarPlaca(remolqueOriginal));
+          if (filaR){ filaR.Placa = remolque.placa; filaR["Tipo de Unidad"] = remolque.tipoUnidad; filaR["Placa Asociada"] = datos.placa; }
+        } else {
+          basePiuraCache.unidades.push({ Placa: remolque.placa, "Tipo de Unidad": remolque.tipoUnidad, RUC: remolque.ruc, Proveedor: remolque.proveedor, ZONA: remolque.zona, SEDE: remolque.sede, Estado:"POR INGRESAR",
+            "Fecha Vencimiento SOAT": remolque.fechaVencimientoSoat, "Fecha Vencimiento RTV": remolque.fechaVencimientoRtv, "Placa Asociada": datos.placa });
+        }
+      }
     } else {
       const res = await fetchConReintento_(getPiuraUrl(), { method:"POST", body: JSON.stringify({ action:"actualizarUnidad", datos }) });
       let data = {};
       try{ data = await res.json(); }catch(e){}
       if (!res.ok || data.ok === false) throw new Error(data.error || ("El servidor respondió " + res.status));
+      if (remolque){
+        if (remolqueOriginal){
+          remolque.placaOriginal = remolqueOriginal;
+          const resR = await fetchConReintento_(getPiuraUrl(), { method:"POST", body: JSON.stringify({ action:"actualizarUnidad", datos: remolque }) });
+          let dataR = {};
+          try{ dataR = await resR.json(); }catch(e){}
+          if (!resR.ok || dataR.ok === false) throw new Error("Unidad guardada, pero el remolque falló: " + (dataR.error || resR.status));
+        } else {
+          await crearUnidadEnBackend_(remolque);
+        }
+      }
       await refrescarBasePiuraTrasGuardar("unidades", "UNIDADES");
     }
     editandoRegistro = null;
