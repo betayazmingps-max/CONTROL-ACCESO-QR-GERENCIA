@@ -3683,13 +3683,17 @@ function agregarFilaProgramacion(){
     dias
   };
 
-  for (let i = 1; i <= cantidad; i++){
-    const numeroViaje = (editandoViajeProgramacion !== null && cantidad === 1)
-      ? editandoViajeProgramacion
-      : String(viajesPrevios + i);
+  // Si se está editando uno o varios viajes, conservan sus mismos números
+  // (Viaje 1, 2, 3…) mientras siga la misma placa; los que sobren (si subes
+  // la cantidad) se numeran a continuación. Con otra placa se renumera.
+  const conservar = (editandoViajesProgramacion && normalizarPlaca(editandoViajesProgramacion.placa) === normalizarPlaca(placa))
+    ? editandoViajesProgramacion.viajes : [];
+  let siguiente = viajesPrevios;
+  for (let i = 0; i < cantidad; i++){
+    const numeroViaje = i < conservar.length ? String(conservar[i]) : String(++siguiente);
     filasProgramacion.push({ ...base, viaje: numeroViaje });
   }
-  editandoViajeProgramacion = null;
+  editandoViajesProgramacion = null;
 
   limpiarFormularioProgramacion();
   renderTablaProgramacion();
@@ -3706,9 +3710,15 @@ function quitarFilaProgramacion(idx){
 // MISMO número de viaje que tenía (no se renumera), mientras "Cantidad de
 // Viajes" se quede en 1. Si la cambias a más de 1, ahí sí se agregan como
 // viajes nuevos, numerados seguido.
-let editandoViajeProgramacion = null;
-function editarFilaProgramacion(idx){
-  const f = filasProgramacion[idx];
+let editandoViajesProgramacion = null; // {placa, viajes:[..]} de lo que se está editando
+function editarFilaProgramacion(idx){ cargarFilasEnFormularioProgramacion_([idx]); }
+// Sirve para 1 viaje o para varios a la vez (los de un mismo grupo): todos
+// comparten los mismos datos, así que se cargan una sola vez y "Cantidad de
+// Viajes" queda con cuántos son.
+function cargarFilasEnFormularioProgramacion_(idxs){
+  idxs = [...idxs].sort((a, b) => a - b);
+  const f = filasProgramacion[idxs[0]];
+  const viajes = idxs.map(i => filasProgramacion[i].viaje).sort((a, b) => (parseInt(a, 10) || 0) - (parseInt(b, 10) || 0));
   document.getElementById("prog-proveedor").value = f.proveedor;
   onCambioProveedorLogistica();
   document.getElementById("prog-conductor").value = f.conductor;
@@ -3736,10 +3746,10 @@ function editarFilaProgramacion(idx){
   document.getElementById("prog-tarifa").value = f.tarifa;
   document.getElementById("prog-tarifa-unit").value = f.tarifa;
   document.getElementById("prog-tarifa-total").value = f.tarifaTotal;
-  document.getElementById("prog-cant-viajes").value = "1";
+  document.getElementById("prog-cant-viajes").value = String(idxs.length);
   document.querySelectorAll("#prog-days .prog-day").forEach(b => b.classList.toggle("on", !!f.dias[b.dataset.dia]));
-  editandoViajeProgramacion = f.viaje;
-  filasProgramacion.splice(idx, 1);
+  editandoViajesProgramacion = { placa: f.placa, viajes };
+  [...idxs].reverse().forEach(i => filasProgramacion.splice(i, 1));
   renderTablaProgramacion();
   document.getElementById("prog-proveedor").scrollIntoView({ behavior:"smooth", block:"start" });
 }
@@ -3765,17 +3775,72 @@ function renderTablaProgramacion(){
       `<tr><td colspan="${10 + DIAS_PROG.length}" style="text-align:center; color:var(--ink-dim);">Aún no hay nada programado esta semana.</td></tr>`;
     return;
   }
-  const filas = filasProgramacion.map((f, i) => `
-    <tr style="${f.yaGuardada ? "background:var(--purple-soft);" : ""}">
-      <td>${f.proveedor}</td><td>${f.conductor}</td><td>${f.placa}</td><td>${f.viaje}</td><td>${f.capacidad}</td>
+  // Los viajes que comparten TODO (proveedor, conductor, placa, ruta, tarifa,
+  // días…) y solo se distinguen por el N° de viaje se muestran en UNA fila
+  // ("Viajes 1, 2, 3, 4") en vez de repetir la misma línea 4 veces.
+  gruposProgramacion = agruparProgramacion_();
+  const filas = gruposProgramacion.map((g, gi) => {
+    const f = g.f;
+    const viajesTxt = (g.viajes.length > 1 ? "Viajes " : "Viaje ") + g.viajes.join(", ");
+    return `
+    <tr style="${g.todosGuardados ? "background:var(--purple-soft);" : ""}">
+      <td>${f.proveedor}</td><td>${f.conductor}</td><td>${f.placa}</td><td>${viajesTxt}</td><td>${f.capacidad}</td>
       <td>${f.ruta}</td><td>${f.operacion}</td><td>${f.tarifa}</td><td>${f.clasificacion}</td>
       ${DIAS_PROG.map(d => `<td class="dia-celda"><span class="dia-circulo${f.dias[d.key] ? " on" : ""}">${d.label[0]}</span></td>`).join("")}
       <td style="white-space:nowrap;">
-        <button class="rm-btn" style="color:var(--purple);" onclick="editarFilaProgramacion(${i})" title="Editar">✎</button>
-        <button class="rm-btn" onclick="quitarFilaProgramacion(${i})" title="Quitar">✕</button>
+        <button class="rm-btn" style="color:var(--purple);" onclick="accionGrupoProgramacion_(${gi}, 'editar')" title="Editar">✎</button>
+        <button class="rm-btn" onclick="accionGrupoProgramacion_(${gi}, 'quitar')" title="Quitar">✕</button>
       </td>
-    </tr>`).join("");
+    </tr>`;
+  }).join("");
   table.innerHTML = cabecera + filas;
+}
+
+let gruposProgramacion = [];
+function agruparProgramacion_(){
+  const grupos = [], porClave = {};
+  filasProgramacion.forEach((f, i) => {
+    const clave = JSON.stringify([f.proveedor, f.conductor, normalizarPlaca(f.placa), f.capacidad, f.ruta, f.operacion,
+      f.tarifa, f.descuento, f.tarifaTotal, f.clasificacion, DIAS_PROG.map(d => !!f.dias[d.key])]);
+    let g = porClave[clave];
+    if (!g){ g = porClave[clave] = { f, idxs: [], viajes: [], todosGuardados: true }; grupos.push(g); }
+    g.idxs.push(i);
+    g.viajes.push(f.viaje);
+    if (!f.yaGuardada) g.todosGuardados = false;
+  });
+  grupos.forEach(g => g.viajes.sort((a, b) => (parseInt(a, 10) || 0) - (parseInt(b, 10) || 0)));
+  return grupos;
+}
+
+// ✎ / ✕ sobre una fila agrupada: si tiene un solo viaje actúa directo; si
+// tiene varios, pregunta si es sobre todos o sobre uno solo (y cuál).
+function accionGrupoProgramacion_(gi, accion){
+  const g = gruposProgramacion[gi];
+  if (!g) return;
+  if (g.idxs.length === 1){ aplicarAccionProgramacion_(accion, g.idxs); return; }
+  const verbo = accion === "editar" ? "Editar" : "Quitar";
+  const ov = document.createElement("div");
+  ov.style.cssText = "position:fixed; inset:0; z-index:10000; background:rgba(0,0,0,0.55); display:flex; align-items:center; justify-content:center; padding:16px;";
+  const porViaje = g.idxs.map((idx, k) => `<button class="btn ghost" data-idx="${idx}">${verbo} solo el viaje ${filasProgramacion[idx].viaje}</button>`).join("");
+  ov.innerHTML = `<div class="qr-card" style="max-width:340px; width:100%; padding:20px; display:flex; flex-direction:column; gap:10px; background:var(--card, #fff);">
+    <div style="font-weight:700;">${escHtml_(g.f.placa)} — ${g.viajes.length} viajes (${g.viajes.join(", ")})</div>
+    <button class="btn" data-todos="1">${verbo} los ${g.viajes.length} viajes</button>
+    ${porViaje}
+    <button class="btn ghost" data-cancel="1">Cancelar</button>
+  </div>`;
+  ov.onclick = e => {
+    const b = e.target.closest("button");
+    if (e.target === ov || (b && b.dataset.cancel)){ ov.remove(); return; }
+    if (!b) return;
+    ov.remove();
+    aplicarAccionProgramacion_(accion, b.dataset.todos ? g.idxs : [parseInt(b.dataset.idx, 10)]);
+  };
+  document.body.appendChild(ov);
+}
+function aplicarAccionProgramacion_(accion, idxs){
+  if (accion === "editar"){ cargarFilasEnFormularioProgramacion_(idxs); return; }
+  [...idxs].sort((a, b) => b - a).forEach(i => filasProgramacion.splice(i, 1));
+  renderTablaProgramacion();
 }
 
 function getProgramacionDemo(){
