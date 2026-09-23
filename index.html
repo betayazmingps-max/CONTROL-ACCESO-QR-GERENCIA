@@ -600,7 +600,7 @@
         <div style="font-weight:700; font-size:17px; text-align:center;" id="opc-titulo"></div>
         <p class="hint" style="text-align:center; margin:4px 0 0;" id="opc-sub"></p>
         <button class="btn block" style="margin-top:16px;" onclick="mostrarQRViaje(viajeConductorActual)">Mostrar QR</button>
-        <button class="btn ghost block" style="margin-top:10px;" onclick="abrirGuiaConductor()">📄 Escanear guía</button>
+        <button id="opc-btn-guia" class="btn ghost block" style="margin-top:10px;" onclick="abrirGuiaConductor()">📄 Mostrar guía</button>
         <div id="opc-guia-estado" class="hint" style="text-align:center; margin-top:8px;"></div>
 
         <div style="margin-top:18px; border-top:1px solid var(--line); padding-top:14px; width:100%;">
@@ -628,27 +628,8 @@
       <button class="btn ghost" onclick="mostrarOpcionesConductor()" style="margin-bottom:14px;">← Opciones</button>
       <div class="qr-card" style="padding:20px;">
         <div style="font-weight:700; font-size:16px; text-align:center;">Guía de remisión</div>
-
-        <div id="guia-ya-existe-wrap" class="hidden" style="width:100%;">
-          <p class="hint" style="text-align:center; margin:4px 0 0;">Este viaje ya tiene una guía guardada. Tócala para mostrársela a Garita.</p>
-          <div id="guia-ya-existe-visor" class="doc-empty">Cargando…</div>
-          <button class="btn ghost block" style="margin-top:12px;" onclick="mostrarFormularioGuiaConductor_()">📷 Reemplazar guía</button>
-        </div>
-
-        <div id="guia-form-wrap">
-          <p class="hint" style="text-align:center; margin:4px 0 0;">Toma una foto de la guía completa, derecha, con buena luz y sin reflejos — o sube el PDF si lo tienes así. Tiene que verse clara: es lo que verán Garita y Logística, y no se puede corregir después.</p>
-          <input type="file" id="guia-foto" accept="image/*" capture="environment" class="hidden" onchange="procesarArchivoGuia_(this, false)">
-          <input type="file" id="guia-pdf" accept="application/pdf,.pdf" class="hidden" onchange="procesarArchivoGuia_(this, true)">
-          <div class="row2" style="margin-top:14px;">
-            <button class="btn block" onclick="document.getElementById('guia-foto').click()">📷 Tomar foto</button>
-            <button class="btn ghost block" onclick="document.getElementById('guia-pdf').click()">📄 Subir PDF</button>
-          </div>
-          <div id="guia-estado" class="hint" style="text-align:center; margin-top:8px;"></div>
-          <img id="guia-preview" class="hidden" alt="Foto de la guía" style="width:100%; border-radius:12px; margin-top:12px; border:1px solid var(--line);">
-          <div id="guia-preview-pdf" class="hidden hint" style="text-align:center; margin-top:12px;">📄 PDF cargado</div>
-          <div id="guia-datos" class="doc-panel hidden" style="width:100%; margin-top:10px;"></div>
-          <button id="guia-btn-guardar" class="btn block hidden" style="margin-top:12px;" onclick="guardarGuiaConductor()">✔ Guardar guía</button>
-        </div>
+        <p class="hint" style="text-align:center; margin:4px 0 8px;">La subió Producción al cargar. Tócala para mostrársela a Garita.</p>
+        <div id="guia-ya-existe-visor" class="doc-empty" style="width:100%;">Cargando…</div>
       </div>
     </div>
 
@@ -801,6 +782,23 @@
     </div>
 
     <div id="produccion-result"></div>
+
+    <div id="produccion-guia-wrap" class="doc-panel hidden">
+      <div class="doc-sec-title" id="produccion-guia-titulo">GUÍA DE REMISIÓN</div>
+      <p class="hint" style="margin:4px 0 0;">Toma una foto de la guía completa, derecha, con buena luz y sin reflejos — o sube el PDF. Tiene que verse clara: es la que verán el Conductor, Garita y Logística, y no se puede corregir después.</p>
+      <input type="file" id="guia-foto" accept="image/*" capture="environment" class="hidden" onchange="procesarArchivoGuia_(this, false)">
+      <input type="file" id="guia-pdf" accept="application/pdf,.pdf" class="hidden" onchange="procesarArchivoGuia_(this, true)">
+      <div class="row2" style="margin-top:12px;">
+        <button class="btn block" onclick="document.getElementById('guia-foto').click()">📷 Tomar foto</button>
+        <button class="btn ghost block" onclick="document.getElementById('guia-pdf').click()">📄 Subir PDF</button>
+      </div>
+      <div id="guia-estado" class="hint" style="text-align:center; margin-top:8px;"></div>
+      <img id="guia-preview" class="hidden" alt="Foto de la guía" style="width:100%; border-radius:12px; margin-top:12px; border:1px solid var(--line);">
+      <div id="guia-preview-pdf" class="hidden hint" style="text-align:center; margin-top:12px;">📄 PDF cargado</div>
+      <div id="guia-datos" class="doc-panel hidden" style="width:100%; margin-top:10px;"></div>
+      <button id="guia-btn-guardar" class="btn block hidden" style="margin-top:12px;" onclick="guardarGuiaProduccion()">✔ Guardar guía</button>
+      <button class="btn ghost block" style="margin-top:8px;" onclick="cerrarGuiaProduccion_()">Omitir por ahora</button>
+    </div>
 
     <div class="log-title">Últimos registros</div>
     <div id="produccion-log" class="list"></div>
@@ -1867,6 +1865,19 @@ function buscarFilaProgramacionHoy(placa, viajeNum){
   );
 }
 
+// Garita/Producción cargan la Programación una sola vez al abrir la app: si
+// Logística programó (o cambió) algo DESPUÉS, el celular seguía con la copia
+// vieja y decía "no está en la programación" aunque sí lo estuviera. Si no
+// encuentra la fila, vuelve a bajar la programación y reintenta una vez.
+async function filaProgramacionHoyConRefresco_(placa, viaje){
+  let fila = buscarFilaProgramacionHoy(placa, viaje);
+  if (!fila && !piuraEnDemo()){
+    try{ await cargarBasePiura(); }catch(e){}
+    fila = buscarFilaProgramacionHoy(placa, viaje);
+  }
+  return fila;
+}
+
 async function initConductor(){
   detenerEscaneoDni();
   // Si quedó la cámara de Garita o Producción abierta de una pantalla
@@ -2035,7 +2046,13 @@ async function verificarDniConductor(){
     return;
   }
 
-  const viajes = buscarViajesHoyPorConductor(conductor.Conductor);
+  let viajes = buscarViajesHoyPorConductor(conductor.Conductor);
+  if (!viajes.length && !piuraEnDemo()){ // copia vieja de la programación: se vuelve a bajar y se reintenta
+    loadingEl.classList.remove("hidden");
+    try{ await cargarDocumentacion(); }catch(e){}
+    loadingEl.classList.add("hidden");
+    viajes = buscarViajesHoyPorConductor(conductor.Conductor);
+  }
   if (!viajes.length){
     errorEl.textContent = "No tienes ningún viaje programado para hoy.";
     errorEl.classList.remove("hidden");
@@ -2121,39 +2138,32 @@ function buscarGuiaDeViaje_(placa, viaje){
       f && f.toDateString() === hoy.toDateString();
   });
 }
+// La guía la sube Producción al cargar. El Conductor solo la MUESTRA (para
+// enseñársela a Garita): el botón se activa cuando ya existe.
 async function actualizarEstadoGuiaConductor_(){
   const el = document.getElementById("opc-guia-estado");
+  const btn = document.getElementById("opc-btn-guia");
   el.textContent = "";
+  btn.disabled = true;
   const v = viajeConductorActual;
   if (!v) return;
   await cargarGuiasCache();
   const g = buscarGuiaDeViaje_(v.Placa, v.Viaje);
-  el.textContent = g ? ("✔ Ya hay una guía registrada para este viaje" + (g["N° Guía"] ? " (" + g["N° Guía"] + ")" : "") + ". Si la vuelves a fotografiar, se reemplaza.") : "Este viaje aún no tiene guía registrada.";
+  if (g && g.Foto){
+    btn.disabled = false;
+    el.textContent = "✔ Producción ya subió la guía" + (g["N° Guía"] ? " (" + g["N° Guía"] + ")" : "") + ".";
+  } else {
+    el.textContent = "La guía aparece aquí cuando Producción termine tu carga.";
+  }
 }
-// Al entrar, si el viaje YA tiene guía guardada se muestra directo (para que
-// el Conductor se la enseñe a Garita en el momento) en vez del formulario de
-// subida — "Reemplazar guía" lleva al formulario si de verdad hace falta
-// cambiarla.
 async function abrirGuiaConductor(){
   ["conductor-opciones-wrap", "conductor-qr-wrap"].forEach(id => document.getElementById(id).classList.add("hidden"));
   document.getElementById("conductor-guia-wrap").classList.remove("hidden");
   const v = viajeConductorActual;
   await cargarGuiasCache();
   const g = v ? buscarGuiaDeViaje_(v.Placa, v.Viaje) : null;
-  if (g && g.Foto){
-    document.getElementById("guia-ya-existe-wrap").classList.remove("hidden");
-    document.getElementById("guia-form-wrap").classList.add("hidden");
-    pintarGuiaVisor_("guia-ya-existe-visor", g.Foto);
-  } else {
-    mostrarFormularioGuiaConductor_();
-  }
-}
-function mostrarFormularioGuiaConductor_(){
-  document.getElementById("guia-ya-existe-wrap").classList.add("hidden");
-  document.getElementById("guia-form-wrap").classList.remove("hidden");
-  document.getElementById("guia-estado").textContent = "";
-  guiaPendiente = null;
-  ["guia-preview", "guia-preview-pdf", "guia-datos", "guia-btn-guardar"].forEach(id => document.getElementById(id).classList.add("hidden"));
+  if (g && g.Foto) pintarGuiaVisor_("guia-ya-existe-visor", g.Foto);
+  else document.getElementById("guia-ya-existe-visor").innerHTML = '<div class="doc-empty">Aún no hay guía para este viaje.</div>';
 }
 // Reduce la foto antes de mandarla (una foto de celular pesa varios MB y
 // no hace falta tanto para leer una guía).
@@ -2256,8 +2266,24 @@ async function procesarArchivoGuia_(input, esPdf){
     est.textContent = "No se pudo procesar el archivo: " + e.message;
   }
 }
-async function guardarGuiaConductor(){
-  const v = viajeConductorActual;
+// Producción sube la guía justo después de confirmar el pedateo de Carga.
+let guiaViajeProduccion = null; // {Placa, Viaje, Conductor, Proveedor, Ruta}
+function abrirGuiaProduccion_(v){
+  guiaViajeProduccion = v;
+  guiaPendiente = null;
+  document.getElementById("produccion-guia-titulo").textContent = "GUÍA DE REMISIÓN — " + v.Placa + " · Viaje " + (v.Viaje || "1");
+  document.getElementById("guia-estado").textContent = "";
+  ["guia-preview", "guia-preview-pdf", "guia-datos", "guia-btn-guardar"].forEach(id => document.getElementById(id).classList.add("hidden"));
+  document.getElementById("produccion-guia-wrap").classList.remove("hidden");
+}
+function cerrarGuiaProduccion_(){
+  guiaViajeProduccion = null;
+  guiaPendiente = null;
+  document.getElementById("produccion-guia-wrap").classList.add("hidden");
+  scannerBusyProduccion = false; // se reanuda el escáner
+}
+async function guardarGuiaProduccion(){
+  const v = guiaViajeProduccion;
   const est = document.getElementById("guia-estado");
   if (!v || !guiaPendiente) return;
   const btn = document.getElementById("guia-btn-guardar");
@@ -2291,8 +2317,8 @@ async function guardarGuiaConductor(){
     }
     guiasCache = null;
     guiaPendiente = null;
-    est.textContent = "Guía guardada ✔ — Garita y Logística ya pueden verla.";
-    setTimeout(mostrarOpcionesConductor, 1200);
+    est.textContent = "Guía guardada ✔ — el Conductor, Garita y Logística ya pueden verla.";
+    setTimeout(cerrarGuiaProduccion_, 1500);
   }catch(e){
     est.textContent = "No se pudo guardar: " + e.message;
   }finally{
@@ -2664,7 +2690,7 @@ async function onScanSuccess(decodedText){
 
   const zona = "Piura"; // esta base es solo de Piura
   const tipo = tipoSeleccionado.garita;
-  const fila = buscarFilaProgramacionHoy(data.placa, data.viaje);
+  const fila = await filaProgramacionHoyConRefresco_(data.placa, data.viaje);
 
   // Si esta Garita es de un Fundo (destino), solo debe aceptar unidades
   // programadas hacia ESE destino — Planta Recria sí lee cualquiera, porque
@@ -2953,7 +2979,7 @@ async function onScanSuccessProduccion(decodedText){
   // La Capacidad/Ruta que se muestran, y la Tarifa que se guarda (sin
   // mostrarla en pantalla), son las que Logística puso en la Programación
   // de este viaje — no las de Unidades.
-  const fila = buscarFilaProgramacionHoy(data.placa, viaje) || {};
+  const fila = (await filaProgramacionHoyConRefresco_(data.placa, viaje)) || {};
   const destinoFila = fila.Ruta ? destinoDeRuta_(fila.Ruta) : "";
 
   // Si esta Producción es de un Fundo (Descarga), solo acepta unidades
@@ -3024,6 +3050,14 @@ async function confirmarPedateoProduccion(){
     if (!registroEnDemo()) sesionLogProduccion.push(registro);
     mostrarResultadoProduccion(registro, data);
     renderProduccionLog();
+    // Después del pedateo de Carga, Producción sube la guía (foto o PDF).
+    // El escáner queda en pausa hasta guardarla u omitirla.
+    if (tipo === "Carga"){
+      abrirGuiaProduccion_({ Placa: data.placa, Viaje: data.viaje, Conductor: data.conductor, Proveedor: data.proveedor, Ruta: data.ruta });
+      pendingProduccionScan = null;
+      document.getElementById("produccion-carga-form").classList.add("hidden");
+      return;
+    }
   }catch(e){
     document.getElementById("produccion-result").innerHTML =
       `<div class="result-banner err"><span class="rb-icon">!</span><span><span class="badge">ERROR</span>No se pudo guardar el registro. Revisa conexión.</span></div>`;
