@@ -4968,7 +4968,7 @@ async function guardarUnidadNueva(){
       if (remolque){
         if (remolqueOriginal){
           const filaR = basePiuraCache.unidades.find(u => normalizarPlaca(u.Placa) === normalizarPlaca(remolqueOriginal));
-          if (filaR){ filaR.Placa = remolque.placa; filaR["Tipo de Unidad"] = remolque.tipoUnidad; filaR["Placa Asociada"] = datos.placa; }
+          if (filaR){ filaR.Placa = remolque.placa; filaR["Tipo de Unidad"] = remolque.tipoUnidad; filaR["Placa Asociada"] = datos.placa; filaR["Año Fab."] = remolque.anioFab; filaR["Fecha Vencimiento SOAT"] = remolque.fechaVencimientoSoat; filaR["Fecha Vencimiento RTV"] = remolque.fechaVencimientoRtv; }
         } else {
           basePiuraCache.unidades.push({ Placa: remolque.placa, "Tipo de Unidad": remolque.tipoUnidad, RUC: remolque.ruc, Proveedor: remolque.proveedor, ZONA: remolque.zona, SEDE: remolque.sede, Estado:"POR INGRESAR",
             "Fecha Vencimiento SOAT": remolque.fechaVencimientoSoat, "Fecha Vencimiento RTV": remolque.fechaVencimientoRtv, "Placa Asociada": datos.placa });
