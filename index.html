@@ -860,6 +860,16 @@
       </span>
       <span class="chev"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
     </button>
+    <button class="role-btn" onclick="goTo('historial')">
+      <span class="icon-chip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      </span>
+      <span>
+        <div class="label">Historial de cambios</div>
+        <div class="sub">Quién editó qué, cuándo, y cómo estaba antes</div>
+      </span>
+      <span class="chev"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+    </button>
   </section>
 
   <!-- LOGÍSTICA: GUÍAS -->
@@ -892,6 +902,36 @@
     <div id="ubi-mapa" style="height:320px; border-radius:var(--radius); margin-top:10px; overflow:hidden; border:1px solid var(--line);"></div>
     <div class="log-title">Últimas posiciones</div>
     <div id="ubi-lista" class="list"></div>
+  </section>
+
+  <!-- LOGÍSTICA: HISTORIAL DE CAMBIOS -->
+  <section id="screen-historial" class="screen hidden">
+    <div class="topbar" style="margin:-22px -20px 4px;">
+      <button class="back" onclick="goTo('logistica')">←</button>
+      <div class="title">Historial de cambios</div>
+    </div>
+    <div class="row2" style="margin-bottom:10px;">
+      <div class="field">
+        <label for="hist-tipo">Qué</label>
+        <select id="hist-tipo" onchange="renderHistorial()">
+          <option value="">Todo</option><option>Proveedor</option><option>Conductor</option>
+          <option>Unidad</option><option>Ruta</option><option>Programación</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="hist-accion">Acción</label>
+        <select id="hist-accion" onchange="renderHistorial()">
+          <option value="">Todas</option><option>Alta</option><option>Edición</option><option>Baja</option>
+        </select>
+      </div>
+    </div>
+    <div class="row2" style="margin-bottom:10px;">
+      <div class="field"><label for="hist-desde">Desde</label><input type="date" id="hist-desde" onchange="renderHistorial()"></div>
+      <div class="field"><label for="hist-buscar">Buscar</label><input type="text" id="hist-buscar" placeholder="Placa, DNI, nombre, usuario…" oninput="renderHistorial()"></div>
+    </div>
+    <button class="btn block" onclick="cargarHistorial()">Actualizar</button>
+    <div id="hist-resumen" class="hint" style="margin-top:8px;"></div>
+    <div id="hist-lista" style="margin-top:8px; display:flex; flex-direction:column; gap:10px;"></div>
   </section>
 
   <!-- LOGÍSTICA: COMPARATIVA (Proyectado vs Ejecutado) -->
@@ -961,7 +1001,7 @@
       <div class="row2">
         <div>
           <label class="hint">Zona</label>
-          <select id="reg-p-zona"><option>Ica</option><option>Lambayeque</option><option selected>Piura</option></select>
+          <select id="reg-p-zona"><option value="ICA">Ica</option><option value="LAMBAYEQUE">Lambayeque</option><option value="PIURA" selected>Piura</option></select>
         </div>
         <div><label class="hint">Sede</label><input type="text" id="reg-p-sede" placeholder="F.PIURA"></div>
       </div>
@@ -996,7 +1036,7 @@
       <div class="row2">
         <div>
           <label class="hint">Zona</label>
-          <select id="reg-c-zona"><option>Ica</option><option>Lambayeque</option><option selected>Piura</option></select>
+          <select id="reg-c-zona"><option value="ICA">Ica</option><option value="LAMBAYEQUE">Lambayeque</option><option value="PIURA" selected>Piura</option></select>
         </div>
         <div><label class="hint">Sede</label><input type="text" id="reg-c-sede" placeholder="F.PIURA"></div>
       </div>
@@ -1100,7 +1140,7 @@
       <div class="row2">
         <div>
           <label class="hint">Zona</label>
-          <select id="reg-u-zona"><option>Ica</option><option>Lambayeque</option><option selected>Piura</option></select>
+          <select id="reg-u-zona"><option value="ICA">Ica</option><option value="LAMBAYEQUE">Lambayeque</option><option value="PIURA" selected>Piura</option></select>
         </div>
         <div><label class="hint">Sede</label><input type="text" id="reg-u-sede" placeholder="F.PIURA"></div>
       </div>
@@ -1387,7 +1427,7 @@
    ========================================================= */
 
 const LS_KEYS = { registroUrl: "acc_registro_url", piuraUrl: "acc_piura_url", registros: "acc_registros_demo", programacion: "acc_programacion_demo",
-  guias: "acc_guias_demo", ubicaciones: "acc_ubicaciones_demo", gps: "acc_gps_compartiendo", proyectado: "acc_proyectado_demo" };
+  guias: "acc_guias_demo", ubicaciones: "acc_ubicaciones_demo", gps: "acc_gps_compartiendo", proyectado: "acc_proyectado_demo", historial: "acc_historial_demo" };
 
 // Apps Script de la hoja "Registro Accesos QR" — ahí se guarda cada Entrada/Salida.
 const DEFAULT_REGISTRO_URL = "https://script.google.com/macros/s/AKfycbzQEPQ0XBMDBWbes6b2OwCGrbNAPFMqvZufaegje8Ak0hfM_Ag1jL4ZD02G86uLWGLXyg/exec";
@@ -1785,6 +1825,7 @@ function goTo(screen){
   if (screen === "ubicaciones") initUbicaciones();
   if (screen === "guias") initGuiasLogistica();
   if (screen === "comparativa") initComparativa();
+  if (screen === "historial") initHistorial();
 }
 function initSettingsConductor(){
   document.getElementById("settings-conductor-otros").classList.add("hidden");
@@ -3239,6 +3280,183 @@ async function cargarUbicaciones(){
 }
 
 /* =========================================================
+   LOGÍSTICA: HISTORIAL DE CAMBIOS
+   Cada alta / edición / baja hecha desde Registrar y Programar deja una
+   línea con quién, cuándo y qué cambió (antes → después). Se guarda en la
+   hoja HISTORIAL de Base Piura (en demo, en localStorage). Guardar el
+   historial nunca frena el guardado: si falla, solo se avisa en consola.
+   ========================================================= */
+const CAMPOS_HIST = {
+  proveedor: [["ruc","RUC","RUC"],["proveedor","PROVEEDOR","Proveedor"],["zona","ZONA","Zona"],["sede","SEDE","Sede"]],
+  conductor: [["dni","DNI","DNI"],["conductor","Conductor","Nombre"],["ruc","RUC","RUC"],["proveedor","PROVEEDOR","Proveedor"],
+    ["zona","ZONA","Zona"],["sede","SEDE","Sede"],["numLicencia","N° Licencia de Conducir","N° licencia"],
+    ["categoriaLicencia","Categoría Licencia","Categoría"],["fechaRevalidacionLic","Fecha de Revalidación","Vence licencia"],
+    ["tipoSctr","Tipo de SCTR","Tipo SCTR"],["aseguradoraSctr","Aseguradora SCTR","Aseguradora SCTR"],
+    ["fechaVencimientoSctr","Fecha Vencimiento SCTR","Vence SCTR"]],
+  unidad: [["placa","Placa","Placa"],["tipoUnidad","Tipo de Unidad","Tipo"],["capacidadPH","Capacidad (PH)","Capacidad"],
+    ["ruc","RUC","RUC"],["proveedor","Proveedor","Proveedor"],["zona","ZONA","Zona"],["sede","SEDE","Sede"],
+    ["anioFab","Año Fab.","Año"],["fechaVencimientoSoat","Fecha Vencimiento SOAT","Vence SOAT"],
+    ["fechaVencimientoRtv","Fecha Vencimiento RTV","Vence RTV"],["estadoUnidad","Estado de la Unidad","Estado"],
+    ["polizaRC","Cuenta con Poliza RC","Póliza RC"],["tieneTC","¿Tiene T.C.?","Tiene T.C."],
+    ["placaAsociada","Placa Asociada","Placa asociada"]]
+};
+const CAMPOS_HIST_BOOL = { polizaRC: true, tieneTC: true };
+function normHist_(v, esBool){
+  if (typeof v === "boolean") return v ? "SI" : "NO";
+  let t = (v === null || v === undefined ? "" : String(v)).trim();
+  const m = t.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) t = m[3] + "/" + m[2] + "/" + m[1];
+  if (esBool) t = t.toUpperCase().startsWith("SI") ? "SI" : "NO";
+  return t;
+}
+// Lista "Campo: antes → después" de lo que de verdad cambió.
+function diffHist_(tipo, filaAntes, datos){
+  const cambios = [];
+  (CAMPOS_HIST[tipo] || []).forEach(([k, col, etiqueta]) => {
+    if (datos[k] === undefined) return;
+    const bool = !!CAMPOS_HIST_BOOL[k];
+    const a = normHist_(filaAntes[col], bool), d = normHist_(datos[k], bool);
+    if (a !== d) cambios.push(etiqueta + ": " + (a || "(vacío)") + " → " + (d || "(vacío)"));
+  });
+  return cambios;
+}
+function resumenHist_(tipo, datos){
+  return (CAMPOS_HIST[tipo] || []).map(([k, , etiqueta]) => {
+    const v = normHist_(datos[k], !!CAMPOS_HIST_BOOL[k]);
+    return v && v !== "NO" ? etiqueta + ": " + v : "";
+  }).filter(Boolean).join(" | ");
+}
+function entradaHist_(tipo, accion, registro, detalle){
+  return { tipo, accion, registro, detalle: detalle || "" };
+}
+// Arma la entrada de una edición (null si no cambió nada).
+function entradaEdicionHist_(tipo, registro, filaAntes, datos){
+  const cambios = diffHist_(tipo, filaAntes || {}, datos);
+  return cambios.length ? entradaHist_(tipo.charAt(0).toUpperCase() + tipo.slice(1), "Edición", registro, cambios.join(" | ")) : null;
+}
+function entradaEdicionRutaHist_(filaAntes, datos){
+  const cambios = [];
+  const fila = filaAntes || {};
+  if (normalizarNombre(fila.RUTA) !== normalizarNombre(datos.ruta)) cambios.push("Nombre: " + (fila.RUTA || "(vacío)") + " → " + datos.ruta);
+  if (String(fila["KM IDA VUELTA"] || "") !== String(datos.kmIdaVuelta)) cambios.push("Km ida y vuelta: " + (fila["KM IDA VUELTA"] || "(vacío)") + " → " + datos.kmIdaVuelta);
+  if (String(fila["CANTIDAD DE VUELTAS"] || "") !== String(datos.vueltas)) cambios.push("Vueltas: " + (fila["CANTIDAD DE VUELTAS"] || "(vacío)") + " → " + datos.vueltas);
+  const cols = new Set([...Object.keys(datos.tarifas || {}), ...Object.keys(fila).filter(k => /^\d+(\.\d+)?\s*PH$/i.test(k.trim()))]);
+  [...cols].sort().forEach(k => {
+    const a = String(fila[k] === undefined ? "" : fila[k]).trim();
+    const d = String((datos.tarifas || {})[k] === undefined ? "" : datos.tarifas[k]).trim();
+    if (a !== d) cambios.push("Tarifa " + k + ": " + (a || "(vacío)") + " → " + (d || "(vacío)"));
+  });
+  return cambios.length ? entradaHist_("Ruta", "Edición", datos.rutaOriginal || datos.ruta, cambios.join(" | ")) : null;
+}
+function getHistorialDemo(){
+  try{ return JSON.parse(localStorage.getItem(LS_KEYS.historial) || "[]"); }catch(e){ return []; }
+}
+async function registrarHistorial_(entradas){
+  entradas = (entradas || []).filter(Boolean);
+  if (!entradas.length) return;
+  const ts = Date.now();
+  const usuario = usuarioActivo || "";
+  const filas = entradas.map(e => ({ ts, usuario, tipo: e.tipo, accion: e.accion, registro: e.registro, detalle: e.detalle }));
+  try{
+    if (piuraEnDemo()){
+      const l = getHistorialDemo();
+      filas.forEach(f => l.push({ Timestamp: f.ts, Usuario: f.usuario, "Acción": f.accion, Tipo: f.tipo, Registro: f.registro, Detalle: f.detalle }));
+      localStorage.setItem(LS_KEYS.historial, JSON.stringify(l));
+    } else {
+      await fetchConReintento_(getPiuraUrl(), { method: "POST", body: JSON.stringify({ action: "registrarHistorial", entradas: filas }) });
+    }
+  }catch(e){ console.error("Historial de cambios", e); }
+}
+
+// Cambios de la Programación de la semana: se compara lo que había guardado
+// contra lo que se va a guardar, por Placa + Viaje.
+function entradasHistProgramacion_(antesFilas, despuesFilas, semanaTxt){
+  const clave = f => normalizarPlaca(f.placa) + "|" + String(f.viaje).trim();
+  const dias = f => DIAS_PROG.filter(d => f.dias && f.dias[d.key]).map(d => d.label.slice(0, 3)).join("/");
+  const campos = [["proveedor","Proveedor"],["conductor","Conductor"],["capacidad","Capacidad"],["ruta","Ruta"],
+    ["operacion","Operación"],["tarifa","Tarifa"],["clasificacion","Clasificación"]];
+  const mapAntes = {}, mapDespues = {};
+  antesFilas.forEach(f => { mapAntes[clave(f)] = f; });
+  despuesFilas.forEach(f => { mapDespues[clave(f)] = f; });
+  const out = [];
+  const reg = f => f.placa + " · Viaje " + f.viaje + " (semana " + semanaTxt + ")";
+  despuesFilas.forEach(f => {
+    const a = mapAntes[clave(f)];
+    if (!a){
+      out.push(entradaHist_("Programación", "Alta", reg(f), [f.conductor, f.ruta, "Días: " + dias(f), f.tarifa ? "Tarifa: " + f.tarifa : ""].filter(Boolean).join(" · ")));
+      return;
+    }
+    const c = [];
+    campos.forEach(([k, et]) => { if (String(a[k] || "").trim() !== String(f[k] || "").trim()) c.push(et + ": " + (a[k] || "(vacío)") + " → " + (f[k] || "(vacío)")); });
+    if (dias(a) !== dias(f)) c.push("Días: " + (dias(a) || "(ninguno)") + " → " + (dias(f) || "(ninguno)"));
+    if (c.length) out.push(entradaHist_("Programación", "Edición", reg(f), c.join(" | ")));
+  });
+  antesFilas.forEach(a => {
+    if (!mapDespues[clave(a)]) out.push(entradaHist_("Programación", "Baja", reg(a), [a.conductor, a.ruta].filter(Boolean).join(" · ")));
+  });
+  if (out.length > 80){
+    const extra = out.length - 80;
+    return out.slice(0, 80).concat([entradaHist_("Programación", "Edición", "Semana " + semanaTxt, "…y " + extra + " cambios más en esta misma guardada")]);
+  }
+  return out;
+}
+
+async function initHistorial(){
+  document.getElementById("hist-resumen").textContent = "Cargando…";
+  await cargarHistorial();
+}
+let historialCache = [];
+async function cargarHistorial(){
+  const resumen = document.getElementById("hist-resumen");
+  let filas = [];
+  try{
+    if (piuraEnDemo()){
+      filas = getHistorialDemo();
+    } else {
+      const texto = await fetchConReintento_(getPiuraUrl() + "?hoja=HISTORIAL").then(r => r.text());
+      filas = parseCSVObjetos(texto);
+    }
+  }catch(e){
+    resumen.textContent = "No se pudo cargar el historial: " + e.message;
+    return;
+  }
+  historialCache = filas.map(f => ({
+    ts: parseInt(f.Timestamp, 10) || 0, usuario: f.Usuario || "", accion: f["Acción"] || "", tipo: f.Tipo || "",
+    registro: f.Registro || "", detalle: f.Detalle || ""
+  })).sort((a, b) => b.ts - a.ts);
+  renderHistorial();
+}
+function renderHistorial(){
+  const tipo = document.getElementById("hist-tipo").value;
+  const accion = document.getElementById("hist-accion").value;
+  const q = normalizarNombre(document.getElementById("hist-buscar").value);
+  const desde = document.getElementById("hist-desde").value;
+  const desdeTs = desde ? new Date(desde + "T00:00:00").getTime() : 0;
+  const lista = historialCache.filter(h =>
+    (!tipo || h.tipo === tipo) && (!accion || h.accion === accion) && h.ts >= desdeTs &&
+    (!q || normalizarNombre([h.registro, h.detalle, h.usuario].join(" ")).includes(q)));
+  const resumen = document.getElementById("hist-resumen");
+  resumen.textContent = !historialCache.length ? "Aún no hay cambios registrados."
+    : (lista.length ? lista.length + " cambio(s)" + (lista.length > 200 ? " — mostrando los 200 más recientes" : "") : "Ningún cambio coincide con el filtro.");
+  const color = { "Alta": "var(--ok, #2E9E5B)", "Edición": "var(--purple)", "Baja": "var(--alert)" };
+  document.getElementById("hist-lista").innerHTML = lista.slice(0, 200).map(h => {
+    const d = new Date(h.ts);
+    const cuando = d.toLocaleDateString("es-PE", { day: "2-digit", month: "2-digit", year: "numeric" }) + " " +
+      d.toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" });
+    const lineas = (h.detalle || "").split(" | ").map(x => `<div style="font-size:13px;">${escHtml_(x)}</div>`).join("");
+    return `<div class="doc-panel">
+      <div style="display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap;">
+        <span style="font-weight:700; color:${color[h.accion] || "inherit"};">${escHtml_(h.accion)} · ${escHtml_(h.tipo)}</span>
+        <span class="hint" style="margin:0;">${cuando}</span>
+      </div>
+      <div style="font-weight:600; margin-top:2px;">${escHtml_(h.registro)}</div>
+      ${lineas}
+      <div class="hint" style="margin:4px 0 0;">${h.usuario ? "Por: " + escHtml_(h.usuario) : "Usuario no identificado"}</div>
+    </div>`;
+  }).join("");
+}
+
+/* =========================================================
    LOGÍSTICA: COMPARATIVA (Proyectado vs Ejecutado)
    El Proyectado se escribe a mano por Ruta + semana (hasta que Logística
    mande el Excel con el formato real y se pueda importar de ahí). El
@@ -3859,6 +4077,11 @@ async function guardarProgramacion(){
 
   const lote = { fecha, guardadoEl: new Date().toISOString(), filas: filasProgramacion };
 
+  // Historial: lo que había guardado esa semana vs. lo que se va a guardar.
+  const lunesSemana = lunesDe(new Date(fecha + "T00:00:00"));
+  const semanaTxt = lunesSemana.toLocaleDateString("es-PE", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const histProg = entradasHistProgramacion_(filasSemanaDeReferencia_().map(convertirFilaSheetAInterna_), filasProgramacion, semanaTxt);
+
   try{
     if (programacionEnDemo()){
       const historial = getProgramacionDemo();
@@ -3883,6 +4106,7 @@ async function guardarProgramacion(){
       // un refresco completo.
       await refrescarBasePiuraTrasGuardar("programacion", "Programacion");
     }
+    registrarHistorial_(histProg);
     msg.textContent = "Programación de la semana guardada ✔";
     cargarFilasSemanaEnTabla_();
     renderTablaProgramacion();
@@ -4148,7 +4372,7 @@ function cargarParaEditar(tipo, row){
     proveedorActivo = row.PROVEEDOR; // encontrado por el buscador: desbloquea Conductor/Unidad para agregarle más
     document.getElementById("reg-p-ruc").value = row.RUC || "";
     document.getElementById("reg-p-nombre").value = row.PROVEEDOR || "";
-    document.getElementById("reg-p-zona").value = row.ZONA || "Piura";
+    document.getElementById("reg-p-zona").value = (row.ZONA || "Piura").toString().trim().toUpperCase();
     document.getElementById("reg-p-sede").value = row.SEDE || "";
     document.getElementById("reg-p-btn-guardar").textContent = "Guardar cambios";
     mostrarBannerEdicion("Proveedor: " + row.PROVEEDOR);
@@ -4159,7 +4383,7 @@ function cargarParaEditar(tipo, row){
     document.getElementById("reg-c-nombre").value = row.Conductor || "";
     document.getElementById("reg-c-ruc").value = row.RUC || "";
     document.getElementById("reg-c-proveedor").value = row.PROVEEDOR || "";
-    document.getElementById("reg-c-zona").value = row.ZONA || "Piura";
+    document.getElementById("reg-c-zona").value = (row.ZONA || "Piura").toString().trim().toUpperCase();
     document.getElementById("reg-c-sede").value = row.SEDE || "";
     document.getElementById("reg-c-licencia").value = row["N° Licencia de Conducir"] || "";
     document.getElementById("reg-c-categoria").value = row["Categoría Licencia"] || "";
@@ -4182,7 +4406,7 @@ function cargarParaEditar(tipo, row){
     document.getElementById("reg-u-soat-msg").textContent = "";
     document.getElementById("reg-u-ruc").value = row.RUC || "";
     document.getElementById("reg-u-proveedor").value = row.Proveedor || "";
-    document.getElementById("reg-u-zona").value = row.ZONA || "Piura";
+    document.getElementById("reg-u-zona").value = (row.ZONA || "Piura").toString().trim().toUpperCase();
     document.getElementById("reg-u-sede").value = row.SEDE || "";
     document.getElementById("reg-u-anio").value = row["Año Fab."] || "";
     document.getElementById("reg-u-fecha-soat").value = ddmmyyyyAFechaInput(row["Fecha Vencimiento SOAT"]);
@@ -4354,6 +4578,10 @@ async function guardarRutaNueva(){
   }
   const datos = { ruta, kmIdaVuelta: km, vueltas, totalKm: Math.round(km * vueltas * 100) / 100, tarifas };
   if (editando) datos.rutaOriginal = editando.clave;
+  const histRuta = editando
+    ? [entradaEdicionRutaHist_((basePiuraCache.rutas || []).find(r => r.RUTA === editando.clave), datos)]
+    : [entradaHist_("Ruta", "Alta", ruta, "Km ida y vuelta: " + km + " | Vueltas: " + vueltas + " | " +
+        Object.keys(tarifas).map(k => "Tarifa " + k + ": " + tarifas[k]).join(" | "))];
 
   msg.textContent = "Guardando…";
   btn.disabled = true;
@@ -4374,6 +4602,7 @@ async function guardarRutaNueva(){
       if (!res.ok || data.ok === false) throw new Error(data.error || ("El servidor respondió " + res.status));
       await refrescarBasePiuraTrasGuardar("rutas", "RUTAS ESTABLECIDAS");
     }
+    registrarHistorial_(histRuta);
     editandoRegistro = null;
     document.getElementById("registrar-editando-banner").classList.add("hidden");
     limpiarFormularioRuta_();
@@ -4503,6 +4732,11 @@ async function guardarProveedorNuevo(){
     }
   }
 
+  const histProv = editando
+    ? entradaEdicionHist_("proveedor", editando.clave, (basePiuraCache.proveedores || []).find(p => p.PROVEEDOR === editando.clave), datos)
+    : entradaHist_("Proveedor", "Alta", datos.proveedor, resumenHist_("proveedor", datos));
+  if (histProv) histProv.tipo = "Proveedor";
+
   msg.textContent = "Guardando…";
   btnGuardar.disabled = true;
   try{
@@ -4521,6 +4755,7 @@ async function guardarProveedorNuevo(){
       if (!res.ok || data.ok === false) throw new Error(data.error || ("El servidor respondió " + res.status));
       await refrescarBasePiuraTrasGuardar("proveedores", "PROVEEDORES");
     }
+    registrarHistorial_([histProv]);
     const creado = !editando;
     editandoRegistro = null;
     document.getElementById("registrar-editando-banner").classList.add("hidden");
@@ -4535,7 +4770,7 @@ async function guardarProveedorNuevo(){
       actualizarModoBotonesRegistro();
       document.getElementById("reg-u-proveedor").value = datos.proveedor;
       document.getElementById("reg-u-ruc").value = datos.ruc;
-      document.getElementById("reg-u-zona").value = datos.zona;
+      document.getElementById("reg-u-zona").value = (datos.zona || "").toUpperCase();
       document.getElementById("reg-u-sede").value = datos.sede;
       msg.textContent = "Proveedor guardado ✔ — ahora registra su primera unidad.";
     } else {
@@ -4653,14 +4888,17 @@ function renderListaConductoresRegistro(){
 }
 
 async function crearConductorEnBackend_(datos){
+  const hist = entradaHist_("Conductor", "Alta", datos.conductor + " (DNI " + datos.dni + ")", resumenHist_("conductor", datos));
   if (piuraEnDemo()){
     basePiuraCache.conductores.push({ DNI: datos.dni, Conductor: datos.conductor, RUC: datos.ruc, PROVEEDOR: datos.proveedor, ZONA: datos.zona, SEDE: datos.sede, Estado:"POR INGRESAR" });
+    registrarHistorial_([hist]);
     return;
   }
   const res = await fetchConReintento_(getPiuraUrl(), { method:"POST", body: JSON.stringify({ action:"guardarConductor", datos }) });
   let data = {};
   try{ data = await res.json(); }catch(e){}
   if (!res.ok || data.ok === false) throw new Error(data.error || ("El servidor respondió " + res.status));
+  registrarHistorial_([hist]);
 }
 
 // Guarda de verdad todos los conductores que se fueron cargando a la lista.
@@ -4699,6 +4937,8 @@ async function guardarConductorNuevo(){
   if (!datos.dni){ msg.textContent = "Falta el DNI."; return; }
   if (!datos.conductor){ msg.textContent = "Falta el nombre del conductor."; return; }
   datos.dniOriginal = editandoRegistro.clave;
+  const filaAntesC = (basePiuraCache.conductores || []).find(c => c.DNI === editandoRegistro.clave);
+  const histCond = entradaEdicionHist_("conductor", (filaAntesC ? filaAntesC.Conductor : datos.conductor) + " (DNI " + editandoRegistro.clave + ")", filaAntesC, datos);
 
   msg.textContent = "Guardando…";
   btnGuardar.disabled = true;
@@ -4713,6 +4953,7 @@ async function guardarConductorNuevo(){
       if (!res.ok || data.ok === false) throw new Error(data.error || ("El servidor respondió " + res.status));
       await refrescarBasePiuraTrasGuardar("conductores", "CONDUCTORES");
     }
+    registrarHistorial_([histCond]);
     editandoRegistro = null;
     document.getElementById("registrar-editando-banner").classList.add("hidden");
     limpiarFormularioConductorNuevo(true);
@@ -4750,6 +4991,8 @@ async function darDeBajaConductor(){
       if (!res.ok || data.ok === false) throw new Error(data.error || ("El servidor respondió " + res.status));
       await refrescarBasePiuraTrasGuardar("conductores", "CONDUCTORES");
     }
+    const filaBaja = (basePiuraCache.conductores || []).find(c => c.DNI === dniSaliente);
+    registrarHistorial_([entradaHist_("Conductor", "Baja", (filaBaja ? filaBaja.Conductor : "DNI " + dniSaliente) + " (DNI " + dniSaliente + ")", "Marcado INACTIVO | Reemplazo: " + reemplazo)]);
     editandoRegistro = null;
     document.getElementById("registrar-editando-banner").classList.add("hidden");
     limpiarFormularioConductorNuevo(false);
@@ -5000,7 +5243,9 @@ function renderListaUnidadesRegistro(){
 }
 
 async function crearUnidadEnBackend_(datos){
+  const hist = entradaHist_("Unidad", "Alta", datos.placa, resumenHist_("unidad", datos));
   if (piuraEnDemo()){
+    registrarHistorial_([hist]);
     basePiuraCache.unidades.push({ Placa: datos.placa, "Tipo de Unidad": datos.tipoUnidad, "Capacidad (PH)": datos.capacidadPH, RUC: datos.ruc, Proveedor: datos.proveedor, ZONA: datos.zona, SEDE: datos.sede, Estado:"POR INGRESAR",
       "Fecha Vencimiento SOAT": datos.fechaVencimientoSoat, "Fecha Vencimiento RTV": datos.fechaVencimientoRtv, "Placa Asociada": datos.placaAsociada || "" });
     return;
@@ -5009,6 +5254,7 @@ async function crearUnidadEnBackend_(datos){
   let data = {};
   try{ data = await res.json(); }catch(e){}
   if (!res.ok || data.ok === false) throw new Error(data.error || ("El servidor respondió " + res.status));
+  registrarHistorial_([hist]);
 }
 
 // Guarda de verdad todas las unidades de la lista y, al terminar, encadena
@@ -5030,7 +5276,7 @@ async function guardarTodasUnidades(){
     seleccionarTipoRegistro("conductor", true);
     document.getElementById("reg-c-proveedor").value = primera.proveedor;
     document.getElementById("reg-c-ruc").value = primera.ruc;
-    document.getElementById("reg-c-zona").value = primera.zona;
+    document.getElementById("reg-c-zona").value = (primera.zona || "").toUpperCase();
     document.getElementById("reg-c-sede").value = primera.sede;
     msg.textContent = cantidad + " unidad(es) guardada(s) ✔ — ahora registra su(s) conductor(es).";
   }catch(e){
@@ -5066,6 +5312,18 @@ async function guardarUnidadNueva(){
     if (yaExiste2){ msg.textContent = "La placa del remolque ya está registrada (o es la misma de esta unidad)."; return; }
   }
 
+  const histUnidad = [entradaEdicionHist_("unidad", editandoRegistro.clave,
+    (basePiuraCache.unidades || []).find(u => normalizarPlaca(u.Placa) === normalizarPlaca(editandoRegistro.clave)), datos)];
+  if (remolque){
+    if (remolqueOriginal){
+      histUnidad.push(entradaEdicionHist_("unidad", remolqueOriginal,
+        (basePiuraCache.unidades || []).find(u => normalizarPlaca(u.Placa) === normalizarPlaca(remolqueOriginal)), remolque));
+    } else if (piuraEnDemo()){
+      // (en real, crearUnidadEnBackend_ ya deja su propio "Alta")
+      histUnidad.push(entradaHist_("Unidad", "Alta", remolque.placa, "Remolque de " + datos.placa + " | " + resumenHist_("unidad", remolque)));
+    }
+  }
+
   msg.textContent = "Guardando…";
   btnGuardar.disabled = true;
   try{
@@ -5099,6 +5357,7 @@ async function guardarUnidadNueva(){
       }
       await refrescarBasePiuraTrasGuardar("unidades", "UNIDADES");
     }
+    registrarHistorial_(histUnidad);
     editandoRegistro = null;
     document.getElementById("registrar-editando-banner").classList.add("hidden");
     limpiarFormularioUnidadNueva(true);
