@@ -851,6 +851,16 @@
       </span>
       <span class="chev"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
     </button>
+    <button class="role-btn" onclick="goTo('comparativa')">
+      <span class="icon-chip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="7"/><rect x="13" y="7" width="3" height="11"/><rect x="19" y="14" width="0.01" height="0.01"/></svg>
+      </span>
+      <span>
+        <div class="label">Comparativa</div>
+        <div class="sub">Proyectado vs Ejecutado, por Ruta y semana</div>
+      </span>
+      <span class="chev"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></span>
+    </button>
   </section>
 
   <!-- LOGÍSTICA: GUÍAS -->
@@ -883,6 +893,26 @@
     <div id="ubi-mapa" style="height:320px; border-radius:var(--radius); margin-top:10px; overflow:hidden; border:1px solid var(--line);"></div>
     <div class="log-title">Últimas posiciones</div>
     <div id="ubi-lista" class="list"></div>
+  </section>
+
+  <!-- LOGÍSTICA: COMPARATIVA (Proyectado vs Ejecutado) -->
+  <section id="screen-comparativa" class="screen hidden">
+    <div class="topbar" style="margin:-22px -20px 4px;">
+      <button class="back" onclick="goTo('logistica')">←</button>
+      <div class="title">Comparativa</div>
+    </div>
+    <p class="hint" style="margin:0 0 10px;">Por ahora el Proyectado se escribe a mano por Ruta — cuando mandes el Excel con el formato real, esta pantalla se ajusta para traerlo de ahí. El Ejecutado se cuenta solo, de los viajes ya completos en Garita.</p>
+    <div class="field" style="margin-bottom:10px;">
+      <label for="comp-fecha">Cualquier día de la semana a revisar</label>
+      <input type="date" id="comp-fecha" onchange="cargarComparativa()">
+    </div>
+    <div id="comp-week-label" class="hint" style="margin:0 0 8px; font-weight:600;"></div>
+    <div class="prog-table-wrap">
+      <table id="comp-tabla" class="prog-table"></table>
+    </div>
+    <div id="comp-resumen" class="hint" style="margin-top:8px;"></div>
+    <button class="btn block" style="margin-top:10px;" onclick="guardarComparativa()">Guardar Proyectado</button>
+    <div id="comp-guardar-msg" class="hint" style="margin-top:8px;"></div>
   </section>
 
   <!-- LOGÍSTICA: REGISTRAR (alta de conductor/unidad) -->
@@ -1358,7 +1388,7 @@
    ========================================================= */
 
 const LS_KEYS = { registroUrl: "acc_registro_url", piuraUrl: "acc_piura_url", registros: "acc_registros_demo", programacion: "acc_programacion_demo",
-  guias: "acc_guias_demo", ubicaciones: "acc_ubicaciones_demo", gps: "acc_gps_compartiendo" };
+  guias: "acc_guias_demo", ubicaciones: "acc_ubicaciones_demo", gps: "acc_gps_compartiendo", proyectado: "acc_proyectado_demo" };
 
 // Apps Script de la hoja "Registro Accesos QR" — ahí se guarda cada Entrada/Salida.
 const DEFAULT_REGISTRO_URL = "https://script.google.com/macros/s/AKfycbzQEPQ0XBMDBWbes6b2OwCGrbNAPFMqvZufaegje8Ak0hfM_Ag1jL4ZD02G86uLWGLXyg/exec";
@@ -1755,6 +1785,7 @@ function goTo(screen){
   if (screen === "settings-conductor") initSettingsConductor();
   if (screen === "ubicaciones") initUbicaciones();
   if (screen === "guias") initGuiasLogistica();
+  if (screen === "comparativa") initComparativa();
 }
 function initSettingsConductor(){
   document.getElementById("settings-conductor-otros").classList.add("hidden");
@@ -3162,6 +3193,140 @@ async function cargarUbicaciones(){
     ubiMapa.fitBounds(L.latLngBounds(coords).pad(0.3), { maxZoom: 16 });
   }catch(e){
     document.getElementById("ubi-mapa").innerHTML = `<div class="empty">${e.message}</div>`;
+  }
+}
+
+/* =========================================================
+   LOGÍSTICA: COMPARATIVA (Proyectado vs Ejecutado)
+   El Proyectado se escribe a mano por Ruta + semana (hasta que Logística
+   mande el Excel con el formato real y se pueda importar de ahí). El
+   Ejecutado se cuenta solo: por cada día programado (columna L/M1/M2/J/V/S/D
+   con "X" en Programación) se revisa con viajeEstaCompleto_ si ese viaje
+   quedó realmente completo en Garita ese día — igual criterio que usa
+   Garita/Producción para saber si un viaje ya cerró.
+   ========================================================= */
+function getProyectadoDemo(){
+  const raw = localStorage.getItem(LS_KEYS.proyectado);
+  return raw ? JSON.parse(raw) : [];
+}
+function saveProyectadoDemo(list){
+  localStorage.setItem(LS_KEYS.proyectado, JSON.stringify(list));
+}
+let proyectadoSemana = {}; // { ruta: viajesProyectados } de la semana que está en pantalla
+
+async function cargarProyectadoDeLaSemana_(lunesRef){
+  let filas = [];
+  try{
+    if (programacionEnDemo()){
+      filas = getProyectadoDemo();
+    } else {
+      const texto = await fetchConReintento_(getPiuraUrl() + "?hoja=PROYECTADO").then(r => r.text());
+      filas = parseCSVObjetos(texto);
+    }
+  }catch(e){ filas = []; }
+  proyectadoSemana = {};
+  filas.forEach(f => {
+    const d = parseFechaProgramacion(f.Fecha);
+    if (d && lunesDe(d).getTime() === lunesRef.getTime()) proyectadoSemana[f.Ruta] = parseInt(f["Viajes Proyectados"], 10) || 0;
+  });
+}
+
+function diaColASemana_(colKey){ return { L:0, M1:1, M2:2, J:3, V:4, S:5, D:6 }[colKey]; }
+async function calcularEjecutadoPorRuta_(lunesRef){
+  await cargarRegistroAccesoCache();
+  const porRuta = {};
+  (basePiuraCache.programacion || []).forEach(row => {
+    const f = parseFechaProgramacion(row.Fecha);
+    if (!f || lunesDe(f).getTime() !== lunesRef.getTime()) return;
+    const ruta = row.Ruta || "(sin ruta)";
+    DIAS_PROG.forEach(d => {
+      if ((row[d.key] || "").toString().trim().toUpperCase() !== "X") return;
+      const dd = new Date(lunesRef); dd.setDate(dd.getDate() + diaColASemana_(d.key));
+      const fechaISO = dd.toISOString().slice(0, 10);
+      if (viajeEstaCompleto_(row.Placa, row.Viaje, fechaISO)) porRuta[ruta] = (porRuta[ruta] || 0) + 1;
+    });
+  });
+  return porRuta;
+}
+
+function initComparativa(){
+  if (!document.getElementById("comp-fecha").value){
+    document.getElementById("comp-fecha").value = new Date().toISOString().slice(0, 10);
+  }
+  cargarComparativa();
+}
+
+async function cargarComparativa(){
+  const fechaTxt = document.getElementById("comp-fecha").value;
+  if (!fechaTxt) return;
+  const resumen = document.getElementById("comp-resumen");
+  resumen.textContent = "Calculando…";
+  await cargarBasePiura();
+  const lunesRef = lunesDe(new Date(fechaTxt + "T00:00:00"));
+  document.getElementById("comp-week-label").textContent =
+    "Semana de: " + lunesRef.toLocaleDateString("es-PE", { day:"2-digit", month:"long", year:"numeric" });
+
+  await cargarProyectadoDeLaSemana_(lunesRef);
+  const ejecutadoPorRuta = await calcularEjecutadoPorRuta_(lunesRef);
+
+  const rutas = new Set([
+    ...(basePiuraCache.rutas || []).map(r => r.RUTA),
+    ...Object.keys(proyectadoSemana), ...Object.keys(ejecutadoPorRuta)
+  ]);
+  const filas = [...rutas].filter(Boolean).sort().map(ruta => {
+    const proyectado = proyectadoSemana[ruta] || 0;
+    const ejecutado = ejecutadoPorRuta[ruta] || 0;
+    return { ruta, proyectado, ejecutado, dif: ejecutado - proyectado };
+  });
+
+  const tabla = document.getElementById("comp-tabla");
+  if (!filas.length){
+    tabla.innerHTML = '<tr><th>Ruta</th><th>Proyectado</th><th>Ejecutado</th><th>Diferencia</th></tr>' +
+      '<tr><td colspan="4" style="text-align:center; color:var(--ink-dim);">No hay rutas programadas ni proyectadas esta semana.</td></tr>';
+    resumen.textContent = "";
+    return;
+  }
+  tabla.innerHTML = '<tr><th>Ruta</th><th>Proyectado</th><th>Ejecutado</th><th>Diferencia</th></tr>' +
+    filas.map(f => `
+      <tr>
+        <td>${escHtml_(f.ruta)}</td>
+        <td><input type="number" min="0" class="comp-proy-input" data-ruta="${escHtml_(f.ruta)}" value="${f.proyectado}" style="width:64px;"></td>
+        <td>${f.ejecutado}</td>
+        <td style="color:${f.dif < 0 ? "var(--alert)" : "inherit"}; font-weight:700;">${f.dif > 0 ? "+" : ""}${f.dif}</td>
+      </tr>`).join("");
+  resumen.textContent = "";
+}
+
+async function guardarComparativa(){
+  const msg = document.getElementById("comp-guardar-msg");
+  const fechaTxt = document.getElementById("comp-fecha").value;
+  if (!fechaTxt) return;
+  const lunesRef = lunesDe(new Date(fechaTxt + "T00:00:00"));
+  const fechaISO = lunesRef.toISOString().slice(0, 10);
+  const filas = [...document.querySelectorAll(".comp-proy-input")].map(inp => ({
+    ruta: inp.dataset.ruta, viajesProyectados: parseInt(inp.value, 10) || 0
+  }));
+  msg.textContent = "Guardando…";
+  try{
+    if (programacionEnDemo()){
+      const historial = getProyectadoDemo().filter(f => {
+        const d = parseFechaProgramacion(f.Fecha);
+        return !(d && lunesDe(d).getTime() === lunesRef.getTime());
+      });
+      filas.forEach(f => historial.push({ Fecha: fechaISO, Ruta: f.ruta, "Viajes Proyectados": f.viajesProyectados }));
+      saveProyectadoDemo(historial);
+    } else {
+      const res = await fetchConReintento_(getPiuraUrl(), {
+        method: "POST", body: JSON.stringify({ action: "guardarProyectado", fecha: fechaISO, filas })
+      });
+      let data = {};
+      try{ data = await res.json(); }catch(e){}
+      if (!res.ok || data.ok === false) throw new Error(data.error || ("El servidor respondió " + res.status));
+    }
+    msg.textContent = "Proyectado guardado ✔";
+    cargarComparativa();
+  }catch(e){
+    msg.textContent = "No se pudo guardar: " + e.message;
   }
 }
 
