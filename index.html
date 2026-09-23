@@ -628,13 +628,27 @@
       <button class="btn ghost" onclick="mostrarOpcionesConductor()" style="margin-bottom:14px;">← Opciones</button>
       <div class="qr-card" style="padding:20px;">
         <div style="font-weight:700; font-size:16px; text-align:center;">Guía de remisión</div>
-        <p class="hint" style="text-align:center; margin:4px 0 0;">Toma una foto de la guía completa, derecha, con buena luz y sin reflejos. Tiene que verse clara: la foto no se puede corregir después, es la que verán Garita y Logística.</p>
-        <input type="file" id="guia-foto" accept="image/*" capture="environment" class="hidden" onchange="procesarFotoGuia(this)">
-        <button class="btn block" style="margin-top:14px;" onclick="document.getElementById('guia-foto').click()">📷 Tomar foto de la guía</button>
-        <div id="guia-estado" class="hint" style="text-align:center; margin-top:8px;"></div>
-        <img id="guia-preview" class="hidden" alt="Foto de la guía" style="width:100%; border-radius:12px; margin-top:12px; border:1px solid var(--line);">
-        <div id="guia-datos" class="doc-panel hidden" style="width:100%; margin-top:10px;"></div>
-        <button id="guia-btn-guardar" class="btn block hidden" style="margin-top:12px;" onclick="guardarGuiaConductor()">✔ Guardar guía</button>
+
+        <div id="guia-ya-existe-wrap" class="hidden" style="width:100%;">
+          <p class="hint" style="text-align:center; margin:4px 0 0;">Este viaje ya tiene una guía guardada. Tócala para mostrársela a Garita.</p>
+          <div id="guia-ya-existe-visor" class="doc-empty">Cargando…</div>
+          <button class="btn ghost block" style="margin-top:12px;" onclick="mostrarFormularioGuiaConductor_()">📷 Reemplazar guía</button>
+        </div>
+
+        <div id="guia-form-wrap">
+          <p class="hint" style="text-align:center; margin:4px 0 0;">Toma una foto de la guía completa, derecha, con buena luz y sin reflejos — o sube el PDF si lo tienes así. Tiene que verse clara: es lo que verán Garita y Logística, y no se puede corregir después.</p>
+          <input type="file" id="guia-foto" accept="image/*" capture="environment" class="hidden" onchange="procesarArchivoGuia_(this, false)">
+          <input type="file" id="guia-pdf" accept="application/pdf,.pdf" class="hidden" onchange="procesarArchivoGuia_(this, true)">
+          <div class="row2" style="margin-top:14px;">
+            <button class="btn block" onclick="document.getElementById('guia-foto').click()">📷 Tomar foto</button>
+            <button class="btn ghost block" onclick="document.getElementById('guia-pdf').click()">📄 Subir PDF</button>
+          </div>
+          <div id="guia-estado" class="hint" style="text-align:center; margin-top:8px;"></div>
+          <img id="guia-preview" class="hidden" alt="Foto de la guía" style="width:100%; border-radius:12px; margin-top:12px; border:1px solid var(--line);">
+          <div id="guia-preview-pdf" class="hidden hint" style="text-align:center; margin-top:12px;">📄 PDF cargado</div>
+          <div id="guia-datos" class="doc-panel hidden" style="width:100%; margin-top:10px;"></div>
+          <button id="guia-btn-guardar" class="btn block hidden" style="margin-top:12px;" onclick="guardarGuiaConductor()">✔ Guardar guía</button>
+        </div>
       </div>
     </div>
 
@@ -2084,12 +2098,30 @@ async function actualizarEstadoGuiaConductor_(){
   const g = buscarGuiaDeViaje_(v.Placa, v.Viaje);
   el.textContent = g ? ("✔ Ya hay una guía registrada para este viaje" + (g["N° Guía"] ? " (" + g["N° Guía"] + ")" : "") + ". Si la vuelves a fotografiar, se reemplaza.") : "Este viaje aún no tiene guía registrada.";
 }
-function abrirGuiaConductor(){
+// Al entrar, si el viaje YA tiene guía guardada se muestra directo (para que
+// el Conductor se la enseñe a Garita en el momento) en vez del formulario de
+// subida — "Reemplazar guía" lleva al formulario si de verdad hace falta
+// cambiarla.
+async function abrirGuiaConductor(){
   ["conductor-opciones-wrap", "conductor-qr-wrap"].forEach(id => document.getElementById(id).classList.add("hidden"));
   document.getElementById("conductor-guia-wrap").classList.remove("hidden");
+  const v = viajeConductorActual;
+  await cargarGuiasCache();
+  const g = v ? buscarGuiaDeViaje_(v.Placa, v.Viaje) : null;
+  if (g && g.Foto){
+    document.getElementById("guia-ya-existe-wrap").classList.remove("hidden");
+    document.getElementById("guia-form-wrap").classList.add("hidden");
+    pintarGuiaVisor_("guia-ya-existe-visor", g.Foto);
+  } else {
+    mostrarFormularioGuiaConductor_();
+  }
+}
+function mostrarFormularioGuiaConductor_(){
+  document.getElementById("guia-ya-existe-wrap").classList.add("hidden");
+  document.getElementById("guia-form-wrap").classList.remove("hidden");
   document.getElementById("guia-estado").textContent = "";
   guiaPendiente = null;
-  ["guia-preview", "guia-datos", "guia-btn-guardar"].forEach(id => document.getElementById(id).classList.add("hidden"));
+  ["guia-preview", "guia-preview-pdf", "guia-datos", "guia-btn-guardar"].forEach(id => document.getElementById(id).classList.add("hidden"));
 }
 // Reduce la foto antes de mandarla (una foto de celular pesa varios MB y
 // no hace falta tanto para leer una guía).
@@ -2121,34 +2153,55 @@ function parsearJsonIA_(texto){
 // La IA solo verifica que se vea clara y que sea una guía; si dice que no,
 // hay que tomar otra foto. Los datos que lee (N° de guía, peso, jabas, hora
 // de carga) se muestran como referencia, no se pueden cambiar.
+// Lee un archivo (el PDF, sin comprimir) como base64 puro.
+function leerArchivoBase64_(file){
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result.split(",")[1]);
+    r.onerror = () => reject(new Error("No se pudo leer el archivo"));
+    r.readAsDataURL(file);
+  });
+}
 let guiaPendiente = null;
-async function procesarFotoGuia(input){
+async function procesarArchivoGuia_(input, esPdf){
   const file = input.files && input.files[0];
   input.value = "";
   if (!file) return;
   const est = document.getElementById("guia-estado");
   const prev = document.getElementById("guia-preview");
+  const prevPdf = document.getElementById("guia-preview-pdf");
   const datosEl = document.getElementById("guia-datos");
   const btn = document.getElementById("guia-btn-guardar");
   guiaPendiente = null;
   datosEl.classList.add("hidden");
   btn.classList.add("hidden");
-  est.textContent = "Revisando que la foto se vea clara… puede tardar unos segundos.";
+  prev.classList.add("hidden");
+  prevPdf.classList.add("hidden");
+  est.textContent = esPdf ? "Revisando que el PDF sea una guía legible… puede tardar unos segundos." : "Revisando que la foto se vea clara… puede tardar unos segundos.";
   try{
-    const { b64, mediaType } = await comprimirImagen_(file, 1600, 0.8);
-    prev.src = "data:" + mediaType + ";base64," + b64;
-    prev.classList.remove("hidden");
+    let b64, mediaType;
+    if (esPdf){
+      if (!/pdf$/i.test(file.type) && !/\.pdf$/i.test(file.name)){ est.textContent = "Ese archivo no es un PDF."; return; }
+      b64 = await leerArchivoBase64_(file);
+      mediaType = "application/pdf";
+      prevPdf.textContent = "📄 " + file.name;
+      prevPdf.classList.remove("hidden");
+    } else {
+      ({ b64, mediaType } = await comprimirImagen_(file, 1600, 0.8));
+      prev.src = "data:" + mediaType + ";base64," + b64;
+      prev.classList.remove("hidden");
+    }
 
-    const r = await workerFetch("analizar_guia", { mediaType, isImg: true, data: b64 });
+    const r = await workerFetch("analizar_guia", { mediaType, isImg: !esPdf, data: b64 });
     let g = null;
     if (!(r._error || r.ok === false)) g = parsearJsonIA_(r.texto);
 
     if (g && g.valida === false){
-      est.textContent = "✖ Esto no parece una guía de remisión. Toma otra foto de la guía completa.";
+      est.textContent = "✖ Esto no parece una guía de remisión. Prueba con otra foto o el PDF de la guía.";
       return;
     }
     if (g && g.nitida === false){
-      est.textContent = "✖ La foto no se ve clara. Acércate, usa buena luz, evita reflejos y toma otra foto.";
+      est.textContent = "✖ No se ve clara. Acércate, usa buena luz, evita reflejos (o usa el PDF si lo tienes).";
       return;
     }
     guiaPendiente = { b64, mediaType, guia: {
@@ -2162,13 +2215,13 @@ async function procesarFotoGuia(input){
         fila("N° de guía", gd.numero) + fila("RUC emisor", gd.rucEmisor) + fila("Fecha", gd.fechaGuia) +
         fila("Peso", gd.peso) + fila("Cantidad de jabas", gd.jabas) + fila("Hora de carga", gd.horaCarga);
       datosEl.classList.remove("hidden");
-      est.textContent = "✔ La foto se ve clara. Si estás de acuerdo, guárdala.";
+      est.textContent = (esPdf ? "✔ El PDF se lee bien." : "✔ La foto se ve clara.") + " Si estás de acuerdo, guárdala.";
     } else {
-      est.textContent = "No se pudo verificar la foto automáticamente. Asegúrate de que se lea bien antes de guardarla.";
+      est.textContent = "No se pudo verificar automáticamente. Asegúrate de que se lea bien antes de guardarla.";
     }
     btn.classList.remove("hidden");
   }catch(e){
-    est.textContent = "No se pudo procesar la foto: " + e.message;
+    est.textContent = "No se pudo procesar el archivo: " + e.message;
   }
 }
 async function guardarGuiaConductor(){
@@ -2234,16 +2287,54 @@ async function cargarFotoGuia_(ref){
     return "";
   }
 }
+// Convierte un data: URL a un blob: URL — los visores de PDF (iframe/pestaña
+// nueva) son más confiables con blob: que con un data: URI gigante en base64.
+function dataUrlABlobUrl_(dataUrl){
+  try{
+    const [meta, b64] = dataUrl.split(",");
+    const mime = (meta.match(/data:(.*?);base64/) || [, "application/octet-stream"])[1];
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return URL.createObjectURL(new Blob([bytes], { type: mime }));
+  }catch(e){ return dataUrl; }
+}
 async function verFotoGuia_(ref){
   const cap = document.createElement("div");
   cap.style.cssText = "position:fixed; inset:0; z-index:10000; background:rgba(0,0,0,0.92); display:flex; align-items:center; justify-content:center; padding:10px; overflow:auto;";
-  cap.innerHTML = '<div style="color:#fff;">Cargando foto…</div>';
-  cap.onclick = () => cap.remove();
+  cap.innerHTML = '<div style="color:#fff;">Cargando guía…</div>';
+  cap.onclick = (e) => { if (e.target === cap) cap.remove(); };
   document.body.appendChild(cap);
   const src = await cargarFotoGuia_(ref);
-  cap.innerHTML = src
-    ? `<img src="${src}" style="max-width:100%; max-height:100%; object-fit:contain;" alt="Guía"><div style="position:fixed; top:14px; right:18px; color:#fff; font-size:26px;">✕</div>`
-    : '<div style="color:#fff;">No se pudo cargar la foto.</div>';
+  if (!src){
+    cap.innerHTML = '<div style="color:#fff;">No se pudo cargar la guía.</div>';
+    return;
+  }
+  const cerrar = '<div onclick="this.parentElement.remove()" style="position:fixed; top:14px; right:18px; color:#fff; font-size:26px; cursor:pointer;">✕</div>';
+  if (src.startsWith("data:application/pdf")){
+    const blobUrl = dataUrlABlobUrl_(src);
+    cap.innerHTML = `<iframe src="${blobUrl}" style="width:100%; height:100%; border:0; background:#fff; border-radius:8px;"></iframe>` + cerrar;
+  } else {
+    cap.innerHTML = `<img src="${src}" style="max-width:100%; max-height:100%; object-fit:contain;" alt="Guía">` + cerrar;
+  }
+}
+// Pinta en `contId` la guía (foto o PDF) referenciada por `ref` — usado en
+// Garita, Logística y la vista del propio Conductor. Para PDF muestra un
+// botón (no se puede mostrar como miniatura); para foto, la imagen tocable.
+async function pintarGuiaVisor_(contId, ref){
+  const cont = document.getElementById(contId);
+  if (!cont) return;
+  if (!ref){ cont.innerHTML = '<div class="doc-empty">Sin foto.</div>'; return; }
+  cont.innerHTML = '<div class="doc-empty">Cargando guía…</div>';
+  const src = await cargarFotoGuia_(ref);
+  if (!document.getElementById(contId)) return; // la pantalla cambió mientras cargaba
+  if (!src){
+    document.getElementById(contId).innerHTML = '<div class="doc-empty">No se pudo cargar la guía.</div>';
+    return;
+  }
+  document.getElementById(contId).innerHTML = src.startsWith("data:application/pdf")
+    ? `<button type="button" class="btn ghost block" onclick="verFotoGuia_('${ref.replace(/'/g,"\\'")}')">📄 Ver PDF de la guía</button>`
+    : `<img src="${src}" alt="Foto de la guía" style="width:100%; border-radius:10px; border:1px solid var(--line); background:var(--purple-soft); min-height:80px; object-fit:contain; max-height:340px; cursor:zoom-in;" onclick="verFotoGuia_('${ref.replace(/'/g,"\\'")}')">`;
 }
 
 /* ---------- Compartir ubicación ---------- */
@@ -2616,8 +2707,7 @@ async function mostrarGuiaEnGarita_(p){
   const fila = (label, valor) => valor ? `<div class="doc-row"><span class="dl">${label}</span><span class="dv">${valor}</span></div>` : "";
   cont.innerHTML = g
     ? `<div class="doc-sec-title">GUÍA DEL VIAJE</div>
-       ${g.Foto ? `<img id="garita-guia-foto" alt="Foto de la guía" style="width:100%; border-radius:10px; margin:6px 0; border:1px solid var(--line); background:var(--purple-soft); min-height:80px; object-fit:contain; max-height:340px;" onclick="verFotoGuia_(this.dataset.ref)" data-ref="${escHtml_(g.Foto)}">
-         <div class="hint" style="text-align:center;">Toca la foto para verla en grande</div>` : ""}
+       ${g.Foto ? `<div id="garita-guia-visor" class="doc-empty">Cargando…</div>` : ""}
        ${fila("N° de guía", g["N° Guía"])}
        ${fila("RUC emisor", g["RUC Emisor"])}
        ${fila("Fecha de la guía", g["Fecha Guía"])}
@@ -2625,11 +2715,7 @@ async function mostrarGuiaEnGarita_(p){
        ${fila("Cantidad de jabas", g.Jabas)}
        ${fila("Hora de carga", g["Hora de Carga"])}`
     : `<div class="doc-sec-title">GUÍA DEL VIAJE</div><div class="doc-empty" style="color:var(--alert);">⚠ Este viaje aún no tiene guía registrada por el Conductor.</div>`;
-  const img = document.getElementById("garita-guia-foto");
-  if (img){
-    const src = await cargarFotoGuia_(img.dataset.ref);
-    if (pendingGarita === p && document.getElementById("garita-guia-foto")) document.getElementById("garita-guia-foto").src = src;
-  }
+  if (g && g.Foto) await pintarGuiaVisor_("garita-guia-visor", g.Foto);
 }
 
 function cancelarGarita(){
@@ -2987,14 +3073,12 @@ async function cargarGuiasLogistica(){
   lista.innerHTML = del.map((g, i) => `
     <div class="doc-panel">
       <div class="doc-sec-title">${escHtml_(g.Placa)} · VIAJE ${escHtml_(g.Viaje)}</div>
-      ${g.Foto ? `<img class="guia-thumb" data-ref="${escHtml_(g.Foto)}" alt="Guía" onclick="verFotoGuia_(this.dataset.ref)" style="width:100%; max-height:260px; object-fit:contain; border-radius:10px; border:1px solid var(--line); background:var(--purple-soft); min-height:80px; cursor:zoom-in;">` : '<div class="doc-empty">Sin foto.</div>'}
+      ${g.Foto ? `<div id="guia-visor-${i}" class="doc-empty">Cargando…</div>` : '<div class="doc-empty">Sin foto.</div>'}
       ${fila("Conductor", g.Conductor)}${fila("Proveedor", g.Proveedor)}${fila("Ruta", g.Ruta)}
       ${fila("N° de guía", g["N° Guía"])}${fila("RUC emisor", g["RUC Emisor"])}${fila("Peso", g.Peso)}
       ${fila("Cantidad de jabas", g.Jabas)}${fila("Hora de carga", g["Hora de Carga"])}
     </div>`).join("");
-  for (const img of lista.querySelectorAll(".guia-thumb")){
-    cargarFotoGuia_(img.dataset.ref).then(src => { if (src) img.src = src; });
-  }
+  del.forEach((g, i) => { if (g.Foto) pintarGuiaVisor_("guia-visor-" + i, g.Foto); });
 }
 
 /* =========================================================
