@@ -1371,7 +1371,7 @@ const LS_KEYS = { registroUrl: "acc_registro_url", piuraUrl: "acc_piura_url", re
 // hasta que se le ponga en Configuración la URL de SU PROPIO Apps Script
 // (una copia del Sheet, separada de Producción), para no arriesgar datos
 // reales mientras se prueban cosas nuevas aquí.
-const DEFAULT_REGISTRO_URL = "";
+const DEFAULT_REGISTRO_URL = "https://script.google.com/macros/s/AKfycbzQEPQ0XBMDBWbes6b2OwCGrbNAPFMqvZufaegje8Ak0hfM_Ag1jL4ZD02G86uLWGLXyg/exec"; // Apps Script "Registro Accesos QR" (marcaciones)
 
 function getRegistroUrl(){
   const o = localStorage.getItem(LS_KEYS.registroUrl);
@@ -1382,7 +1382,7 @@ function getRegistroUrl(){
 // unidades, rutas y programación salen de aquí.
 // COPIA GERENCIA: igual que arriba, sin URL por defecto — Modo demo hasta
 // que se configure la URL de la copia propia de este Sheet.
-const DEFAULT_PIURA_URL = "";
+const DEFAULT_PIURA_URL = "https://script.google.com/macros/s/AKfycbxMPbU4bPHK2YBCJnazqIb1WT4wLGZgYZgLogn3Yjb4xT9uzekdEnIk2MpuH5U8GWF4/exec"; // Apps Script "Base Piura" (programación)
 function getPiuraUrl(){
   const o = localStorage.getItem(LS_KEYS.piuraUrl);
   if (o === "__demo__") return "";
