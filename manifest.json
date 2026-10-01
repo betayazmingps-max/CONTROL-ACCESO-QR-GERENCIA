@@ -1,6 +1,6 @@
 {
-  "name": "Control de Acceso - Transporte de Materia Prima",
-  "short_name": "Acceso QR",
+  "name": "Control de Acceso - Transporte de Materia Prima (Gerencia)",
+  "short_name": "Acceso QR Gerencia",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
